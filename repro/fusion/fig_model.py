@@ -314,7 +314,7 @@ def main() -> None:
     ox, ty = -2.2, yc
     kernel(ax, 68.0 + ox, ty - 1.2, 3, 2.4); lab(ax, 69.2 + ox, ty - 1.5, "pos. conv\n3x3", fs=3.6)
     node(ax, 72.4 + ox, ty, "LN", r=0.8, fs=3.5)
-    scans(ax, 74.2 + ox, ty + 0.6, 3.4); lab(ax, 75.9 + ox, ty + 4.3, "4-direction scans", fs=3.6, va="bottom")
+    scans(ax, 74.2 + ox, ty + 0.6, 3.4); lab(ax, 75.9 + ox, ty + 4.2, "SRNL (self-referential nested learning)", fs=3.6, va="bottom", color="#1f6f78")
     kernel(ax, 74.7 + ox, ty - 4.4, 7, 2.4, fc="#b9dfe2"); node(ax, 78.6 + ox, ty - 3.2, "$\\sigma$", r=0.7, fs=4.0)
     lab(ax, 75.9 + ox, ty - 4.7, "gated 7x7", fs=3.6)
     node(ax, 81.2 + ox, ty, "+", r=0.7)
