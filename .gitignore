@@ -1,0 +1,11 @@
+# weights and caches are release assets / rebuilt (repro/fusion/WEIGHTS.sha256, CACHES.sha256)
+*.pt
+*.npy
+*.npz
+*.cbm
+*.pkl
+data/
+runs/sophelio_sota/submission_*/
+.venv*/
+__pycache__/
+!baseline/sophelio-starter/fusion_scoring/masks/*.npz

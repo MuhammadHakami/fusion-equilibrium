@@ -1,0 +1,11 @@
+{
+ "q95": [
+  0.16597571969032288,
+  23.889766693115234
+ ],
+ "betaN": [
+  -0.2794523014575243,
+  9.473847699258519
+ ],
+ "rule": "all 7,041 labelled shots: q95 = label min / max (blow-ups only; F7C showed the 1e-4 quantile cut real high early-frame values), betaN = label quantiles 1e-4 / 1-1e-4 (doc 35 \u00a742z)"
+}

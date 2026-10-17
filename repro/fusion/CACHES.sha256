@@ -1,0 +1,9 @@
+e591bb9767993d57e24fe8f380826c6306123ec6368e3a45362f77456744c6dc    1596764288  data/sophelio_proc/cache_k256/C.npy
+1a9099ee537f424a1931bba289cc467a2e285840fcbe89dbc6d228f7edd56a1b      37424288  data/sophelio_proc/cache_k256/S.npy
+69f91d6e2f17d6094ec4f30b208e1a143433bcaf71fc9d0b3457ff11082ccf4d    2663352848  data/sophelio_proc/cache_k256/X.npy
+39d6d8dc97d54d773f73514cdfeebc32d7c406320805aa67ab9870eddd67d657    2770079128  data/sophelio_proc/cache_k256/psi_heldout.npy
+ffff7ecdb15f688c9b53a494060622a9a091b7f9825ff16f77a088f96c3998e4       6237488  data/sophelio_proc/cache_k256/shot.npy
+0f47df57b4c682c8edf96e3108b5cd4ef259584c82faf845d13b86f7f860f433       1559468  data/sophelio_proc/cache_k256/split.npy
+ed4632775ee689b7c2e7578058615b1872ed07f17dca723c8bdd760f0b4f8680     654922928  data/sophelio_proc/cache_k256/thz.npy
+10f98a4a306cda95525740725535ab300fce66697ac454faf3ee083e0988abd3      81210908  data/sophelio_proc/thz_public.npy
+3a805d49383fae7afa10bb5b194412829e0c505b4d9f5c81ee7b11b205e6842a     418955130  runs/strat/fusion/boundary_labels_v8.npz

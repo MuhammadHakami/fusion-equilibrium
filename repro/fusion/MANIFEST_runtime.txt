@@ -1,0 +1,78 @@
+# Runtime inputs of the Final chain, CAND=F15K, CLEAN path (strace of runs/final_fold.sh + repro/fusion/infer.sh on diii_d_fold_smoke,
+# 2026-10-17, qshape off, tree anchor J1RLHA_s1). Excludes Python sources. sha256  bytes  git-status  path
+
+## A trained weights (must be pinned): 35 files, 10.02 GB
+c25ad584f146c6dd417d8f3d63e056fa26018342fa77122d976fb65d962a7174       4561542  UNTRACKED  data/sophelio_proc/cache_k256/meta.pt
+630de79c86d854671224c881c524ce531e9b4ccc2ff0d78d12b89241d630ab57       8698159  UNTRACKED  runs/nas/sophelio/trunks_all/coupled_c13-mlp_seed1.pt
+6147aeaf2741f04d83e2645625d0ba78166c4d872108ebb3671d1f33d60d1a5b      71386893  UNTRACKED  runs/nas/sophelio/trunks_all/trunk1_t19-ew2_seed1.pt
+c9ca8829dc56938c9dbb7e14894864fb51b6123346ae2c3a1482e98789b7cb43      71386893  UNTRACKED  runs/nas/sophelio/trunks_all/trunk1_t19-ew2_seed2.pt
+35c2cdbd417a4e41b8f06b92f3ed740225d69441510889dc84debf2a734d2a0a      71386613  UNTRACKED  runs/nas/sophelio/trunks_all/trunk1_t19.pt
+bda97f1312d1bd6b3c2d7287f5b266484ad1c2a553696b84f9206fb738ad92e7       8634397  UNTRACKED  runs/nas/sophelio/trunks_all/trunk1_t5-ew2_seed1.pt
+0dc6127505f4fa221b538fc472cf5f955383f4a09b1acaa28cc0afe012650742       8634397  UNTRACKED  runs/nas/sophelio/trunks_all/trunk1_t5-ew2_seed3.pt
+65c375a26d32b9e3f1d59bf34abfc1d66a2c3565d109a5f0e81563f3b384b73c     138565533  UNTRACKED  runs/nas/sophelio/trunks_all/trunk1_t7-ew2_seed1.pt
+9b730c0ee0772435c2d71074e7fe12913b01f5fc55deb7e03b1a8fe2efacc95f      71631329  UNTRACKED  runs/sophelio_sota/PQ2A_s1.pt
+b557343fa9b752dc8bb0b10061c94278055483db5812801f0985d7f5f1f1474e      71631329  UNTRACKED  runs/sophelio_sota/PQ2A_s2.pt
+91aaab1f0dc8aeb5330178df3979b657f879069e2dbadba40cca70922f254d89      71631329  UNTRACKED  runs/sophelio_sota/PQ2A_s3.pt
+aa940d1bb48f167c6f71e3b8db1cb99ae74eac60da96791e2236c147d287ea15      71386557  UNTRACKED  runs/sophelio_sota/PSIFA_s1.pt
+4265de3172c85d4be4432533c8191b22f07a106fa30ee44cc25b83a7f8f6af7c      71386557  UNTRACKED  runs/sophelio_sota/PSIFA_s2.pt
+72569b1ec7ec168d191183591b67aacf4ad8907b27578276713aef2ce8f28d89      71386557  UNTRACKED  runs/sophelio_sota/PSIFA_s3.pt
+cc9ef6aee041f0439dc8ab2a74cd04b6e843c23f2d2556e4722422d95fdabd15      12665856  UNTRACKED  runs/strat/fusion/gbdt_shape_li_all.cbm
+8da2b60e49e9c462dddd7cfd70bd857f6631cb4332bd60a2c28cc93864590fbc     140934877  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1QH_s1.pt
+e48a509535d2921aa82e0134aa4bfc1ffc9aa36084e552d01ada5af70a8401ef     140934877  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1QH_s2.pt
+34711ab5f30702104d4199fb0e8fad5b67c50989b17fdc251643d9f63f33f345     140934877  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1QH_s3.pt
+0e014d7ec0ae6f108503d9867978468a0502394c91f3b7b78018c339b5257ca4     548021569  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1QPIpi_s1.pt
+aedbae3eeb94da2021e4e4cc316b95706cd63f756ec059ca0a2d1e8499f5be61     548021569  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1QPIpi_s2.pt
+1986f023c813f2b773655db86fc54a71719dcab54d8d87204bd08b2218e000f5     548336149  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1RLHA_s1.pt
+a7b56ffada7468b3ce01d1712d3debc4676a7131f5f02f9a278dff44fa26b5a7     548336149  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1RLHA_s2.pt
+15e96e721db666aa2f561bb4b724a817eda4d74fbdf42089a61b1a4b9b4f2184     548336149  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1RLHA_s3.pt
+191f63c99cd6fd6f0e991cf604c483d171b22c3001fa758389fa6bd71f8b67c4     548336149  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1RLHA_s4.pt
+fe8b1e91a4bffd4accd2971f27a6ef73d155438de856e2f425759d8bdb1bc260     548336149  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1RLHA_s5.pt
+490b331f3b22bff922a7e9eab07c21dd7fc52be4caf8b6e78e57117fe3823658     548336149  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1RLHA_s6.pt
+f1510154756fbfebd82deaca8b4d451211d74dd6f93f0f8be1c1dfd8c74b8c06     548336149  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1RLHA_s7.pt
+08c8f4b5c3136e9b98d939fe7ea6a5b790ea8571760f1ead4828c1f673842e94     548336149  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1RLHA_s8.pt
+7672b7a84f98b6248cf15265b21494a0d99ad2659fede5ea0f204d4273cd71f9     544708901  UNTRACKED  runs/strat/fusion/head_qb_QHAR2Hu_s1.pt
+34836157a21c9cd52352374cdbedaee2a35ed13518ae19cb5c567f154f4f3304     544708901  UNTRACKED  runs/strat/fusion/head_qb_QHAR2Hu_s2.pt
+8f646961e4e1351acb9017efba71a5154346f6491337ae4bacbfda7648893146     544708901  UNTRACKED  runs/strat/fusion/head_qb_QHAR2Hu_s3.pt
+fad77216b15991a30cfb778b7f3f2226031488d0e5ffef6004ae92aa4ce2f154     547075469  UNTRACKED  runs/strat/fusion/head_xp_XPA_s1.pt
+0581e09d42d7adfce65d97d5de3e61173768fda2bec21dc4bfa5f1d7aecefacc     547075469  UNTRACKED  runs/strat/fusion/head_xp_XPA_s2.pt
+9c1625d1dcae4593c5b336793319834c37071d467729c521253f57978ee3625d     547075469  UNTRACKED  runs/strat/fusion/head_xp_XPA_s3.pt
+700229431dac55078fab8c2238ab562ea8b05cb382157d92b171ae1ca19cab41      14022098  UNTRACKED  runs/strat/fusion/litree.npz
+
+## B runtime metadata (must be pinned): 4 files, 0.00 GB
+5fc7f52a8b253db94020b46f20bd299560a799bc0135a1eda0c611b8001a07f1          6029  UNTRACKED  baseline/sophelio-starter/fusion_scoring/masks/d3d_envelope.npz
+14bb78c4de37d8bd7f3f03b6c9c5cbf231a7657d89773fe453b68412a751d273          2339  tracked    runs/sophelio_sota/ens_select_mlp.json
+effd7de71cb5d2a10cc656e3388239aa6ff002f879c6e6adca84578b2523afd7          6629  tracked    runs/strat/fusion/magfix.json
+90792cbe8afd5a001a19089218a7870f3564ca318e86b91f498a727db0ea43ea           316  tracked    runs/strat/fusion/qb_clamp.json
+
+## C training-derived caches (rebuilt by the README data step; pin for inference-only use): 11 files, 8.23 GB
+e591bb9767993d57e24fe8f380826c6306123ec6368e3a45362f77456744c6dc    1596764288  UNTRACKED  data/sophelio_proc/cache_k256/C.npy
+1a9099ee537f424a1931bba289cc467a2e285840fcbe89dbc6d228f7edd56a1b      37424288  UNTRACKED  data/sophelio_proc/cache_k256/S.npy
+69f91d6e2f17d6094ec4f30b208e1a143433bcaf71fc9d0b3457ff11082ccf4d    2663352848  UNTRACKED  data/sophelio_proc/cache_k256/X.npy
+39d6d8dc97d54d773f73514cdfeebc32d7c406320805aa67ab9870eddd67d657    2770079128  UNTRACKED  data/sophelio_proc/cache_k256/psi_heldout.npy
+ffff7ecdb15f688c9b53a494060622a9a091b7f9825ff16f77a088f96c3998e4       6237488  UNTRACKED  data/sophelio_proc/cache_k256/shot.npy
+0f47df57b4c682c8edf96e3108b5cd4ef259584c82faf845d13b86f7f860f433       1559468  UNTRACKED  data/sophelio_proc/cache_k256/split.npy
+ed4632775ee689b7c2e7578058615b1872ed07f17dca723c8bdd760f0b4f8680     654922928  UNTRACKED  data/sophelio_proc/cache_k256/thz.npy
+10f98a4a306cda95525740725535ab300fce66697ac454faf3ee083e0988abd3      81210908  UNTRACKED  data/sophelio_proc/thz_public.npy
+a455e6c425fc677a11a2365157da4e3fdd46ce3c7fc6840e0e4ae36bf32154b5          3273  tracked    repro/fusion/infer.sh
+fda5972bb449248e7415bf6212a84c8f5b51493be5ef609199d58f13cbfa227d          2206  tracked    runs/final_fold.sh
+3a805d49383fae7afa10bb5b194412829e0c505b4d9f5c81ee7b11b205e6842a     418955130  UNTRACKED  runs/strat/fusion/boundary_labels_v8.npz
+
+## D fold data / fold-derived (organizers' fold; built at inference; excluded): 10 files, 0.04 GB
+
+## F16K additions (CAND=F16K; route: stems): 6 trained weights - must be pinned with the F15K set
+74c15936cd73b1f32bd981738d1c7cf209eaeefad80f88db449243cc500dadb2     548352865  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1RLHACS_s1.pt
+90c8a364b02ca576387136f30a9563b79fc084de2698ac62c1e2ef1a2c4a49b5     548352865  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1RLHACS_s2.pt
+68ab4885b93b325a3a28463e8b5e3b68d8fc3c89f55b3f928c7c566e0d59e52e     548352865  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1RLHACS_s3.pt
+5845de8412f37d7a12ce8315d1d40b4211a9caea8aaf8bbfef5b903fec37cb02     548352865  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1RLHACS_s4.pt
+86035d3de8904b92a8c818b72d80cb9470aff51e4ba764b593023d7c93eded39     544725297  UNTRACKED  runs/strat/fusion/head_qb_QHAR2HuCS_s1.pt
+361da14cda4379256fc4d96ca6b2fc7572f27ab5fd2639ead92765f412e441fd     544725297  UNTRACKED  runs/strat/fusion/head_qb_QHAR2HuCS_s2.pt
+# F16K also reads the fold's X_ipfix_<tag>.npy (sign of the shot's mean corrected Ip; built by runs/final_fold.sh -> ip_fix.py --fold-only).
+
+## F17K additions (CAND=F17K, the adopted Final configuration; pinned with the F15K + F16K sets): 6 trained weights; at F17K inference they
+## replace J1QH s1-3 and XPA s1-3 on every shot (those 6 are then unread; train_all.sh CAND=F17K trains only the CS twins)
+912dd44e6defb0f753524eb03bc56fe0eba33bffe25211a8c520f145bbb2a074     140943477  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1QHCS_s1.pt
+a2911f9673e73877262843301c1bd6fb4d01cb286569a001706e0b989f6c974a     140943477  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1QHCS_s2.pt
+cce8b96e970c5148844ea01bcd30f772843e9d0ee6548be5682f425adb183dd0     140943477  UNTRACKED  runs/strat/fusion/head_boundary_v8_J1QHCS_s3.pt
+47795ed70cc1f47c60311f19b315bc8b3a2ffca5cb258d63f37a0da6615017b8     547091993  UNTRACKED  runs/strat/fusion/head_xp_XPACS_s1.pt
+15ab3bd3aa0bd1fa6437587935aa822ed07907af8764ee67a989b35b6575e6b7     547091993  UNTRACKED  runs/strat/fusion/head_xp_XPACS_s2.pt
+5667aaecce06e6253e23df2512628c1f305bfc5aacc2d38046c0be833f77198a     547091993  UNTRACKED  runs/strat/fusion/head_xp_XPACS_s3.pt
