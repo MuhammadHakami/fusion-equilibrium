@@ -73,7 +73,7 @@ def sizes() -> dict:
 
 
 # ------------------------------------------------------------------------------------------------- primitives (paper Fig. 1 style)
-def band(ax, x0, x1, y, title, color, h=1.35, fs=4.6, tc="white", ha="center"):
+def band(ax, x0, x1, y, title, color, h=1.35, fs=4.3, tc="white", ha="center"):
     ax.add_patch(FancyBboxPatch((x0, y), x1 - x0, h, boxstyle="round,pad=0.05,rounding_size=0.45", fc=color, ec="none"))
     ax.text((x0 + x1) / 2 if ha == "center" else x0 + 0.8, y + h / 2, title, ha=ha, va="center", fontsize=fs, color=tc, weight="bold")
 
@@ -238,125 +238,168 @@ def glyph(ax, x, y, kind, w=4.2, h=2.6):
     ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.05,rounding_size=0.3", fc="none", ec="0.55", lw=0.35))
 
 
-# ------------------------------------------------------------------------------------------------- figure
+def tokamak(ax, x, y, s):
+    """DIII-D poloidal cross-section: vessel, plasma flux surfaces, 18 F-coils, magnetic probes, Thomson chord."""
+    th = np.linspace(0, 2 * np.pi, 200)
+    for k, f in enumerate((0.9, 0.7, 0.5, 0.3)):
+        R = x + f * s * 0.30 * np.cos(th + 0.35 * np.sin(th)); Z = y + f * s * 0.48 * np.sin(th)
+        ax.fill(R, Z, color=matplotlib.colormaps["RdBu_r"](0.62 + 0.09 * k), zorder=2, lw=0)
+    R = x + s * 0.30 * np.cos(th + 0.35 * np.sin(th)); Z = y + s * 0.48 * np.sin(th); ax.plot(R, Z, color=TEAL, lw=0.6, zorder=3)
+    ax.plot(x + s * 0.40 * np.cos(th + 0.3 * np.sin(th)), y + s * 0.62 * np.sin(th), color="0.35", lw=1.0, zorder=3)
+    for t in np.linspace(0, 2 * np.pi, 14, endpoint=False):
+        ax.add_patch(Circle((x + s * 0.40 * np.cos(t + 0.3 * np.sin(t)), y + s * 0.62 * np.sin(t)), 0.16, fc="#e8a33d", ec="none", zorder=4))
+    cs = [(-0.52, z) for z in (-0.45, -0.22, 0.0, 0.22, 0.45)] + [(0.55, z) for z in (-0.4, -0.2, 0.0, 0.2, 0.4)] + \
+         [(r, 0.75) for r in (-0.3, -0.1, 0.1, 0.3)] + [(r, -0.75) for r in (-0.3, -0.1, 0.1, 0.3)]
+    for r, z in cs:
+        ax.add_patch(Rectangle((x + r * s - 0.35, y + z * s - 0.3), 0.7, 0.6, fc="#7a96b8", ec="0.3", lw=0.3, zorder=4))
+    ax.plot([x + 0.02 * s] * 2, [y - 0.55 * s, y + 0.55 * s], color="#2e7d5b", lw=0.5, ls=(0, (2, 1)), zorder=5)
+    for z in np.linspace(-0.4, 0.4, 7):
+        ax.add_patch(Circle((x + 0.02 * s, y + z * s), 0.14, fc="#2e7d5b", ec="none", zorder=6))
+
+
+def traces(ax, x, y, w, h):
+    """The shot's input signals over time (Ip, coil currents, Thomson Te), the 32-frame window and frame t."""
+    t = np.linspace(0, 1, 200); hh = h / 3
+    sig = [np.clip(np.minimum(t / 0.15, 1) * np.minimum((1 - t) / 0.12, 1), 0, 1),
+           [0.5 + 0.35 * np.sin(2 * np.pi * (t * f + p)) * np.minimum(t / 0.2, 1) for f, p in ((1.3, 0.1), (0.8, 0.5), (2.0, 0.3))],
+           0.25 + 0.6 * np.clip(np.minimum(t / 0.2, 1) * np.minimum((1 - t) / 0.15, 1), 0, 1) * (1 + 0.15 * np.sin(40 * t))]
+    cols = ["#1f4e79", ["#4a7fb5", "#6b9bc9", "#9ec1e3"], "#2e7d5b"]
+    for i, (sg, c) in enumerate(zip(sig, cols)):
+        y0 = y + h - (i + 1) * hh
+        ax.add_patch(Rectangle((x, y0 + 0.15), w, hh - 0.3, fc="white", ec="0.6", lw=0.3))
+        for ss, cc in (zip(sg, c) if isinstance(c, list) else [(sg, c)]):
+            ax.plot(x + t * w, y0 + 0.3 + (hh - 0.6) * np.asarray(ss) * 0.9, color=cc, lw=0.5)
+    ax.add_patch(Rectangle((x + 0.48 * w, y), 0.16 * w, h, fc="#e8a33d", alpha=0.18, ec="none"))
+    ax.plot([x + 0.56 * w] * 2, [y, y + h], color="#e8a33d", lw=0.7)
+    for i, nm in enumerate(("Ip", "coil I", "Te, ne")):
+        lab(ax, x - 0.3, y + h - (i + 0.5) * hh, nm, fs=3.6, ha="right", va="center")
+    lab(ax, x + 0.56 * w, y - 0.3, "t", fs=3.8, color="#b5541f")
+
+
 def main() -> None:
     s = sizes(); W = s["width"]; T = s["tokens"] * s["c"]; R = s["regs"] * s["atoms"]
-    fig, ax = plt.subplots(figsize=(7.2, 5.9)); ax.set_xlim(0, 100); ax.set_ylim(-12.5, 71.0); ax.axis("off")
+    fig, ax = plt.subplots(figsize=(7.2, 6.1)); ax.set_xlim(0, 100); ax.set_ylim(-1.5, 81.0); ax.axis("off")
 
-    # ======================= row A: backbone
-    band(ax, 0.5, 99.5, 69.3, f"Backbone: VisionHOPE-T on the shot map  (shape head V60, {s['params']} M parameters)", C_VH, h=1.7, fs=5.1)
-    by, yc = 66.3, 59.8
-    band(ax, 0.8, 8.4, by, "input", C_IN); band(ax, 9.1, 19.2, by, "stem", GREY); band(ax, 19.9, 43.0, by, f"VisionHOPE-T x {s['blocks']}", C_VH)
-    band(ax, 43.7, 55.0, by, "read-out", NAVY); band(ax, 55.7, 66.4, by, "projection", NAVY)
-    r_ = np.random.default_rng(7); xin = np.cumsum(r_.normal(size=(12, 30)), 0) + np.sin(np.arange(30))[None]
-    ax.imshow(xin, extent=(1.4, 7.8, yc - 3.0, yc + 3.0), cmap="viridis", aspect="auto", origin="upper", zorder=2)
-    ax.add_patch(Rectangle((1.4, yc - 3.0), 6.4, 6.0, fc="none", ec="0.3", lw=0.45, zorder=3))
-    lab(ax, 4.6, yc - 3.3, f"$x_{{1..L}}$\nL x {s['fin'] + s['extra']}"); lab(ax, 1.1, yc, "frames", fs=3.6, ha="right", va="center", rotation=90)
-    mlp(ax, 9.0, yc - 3.4, 5.6, 5.8, [s["fin"] + s["extra"], T], fc="#b0b0b0")
-    e0 = fmap(ax, 15.0, yc - 2.5, 3.0, 5.0, seed=1); lab(ax, 16.5, yc - 2.8, f"{s['c']}\nL x {s['tokens']}")
-    e1 = fmap(ax, 22.6, yc - 2.5, 3.0, 5.0, seed=2); lab(ax, 24.1, yc - 2.8, f"{s['c']}\nL x {s['tokens']}")
-    e2 = fmap(ax, 33.4, yc - 2.5, 3.0, 5.0, seed=4, hl=3); lab(ax, 34.9, yc - 2.8, f"{s['c']}\nL x {s['tokens']}")
-    arrow(ax, (7.9, yc), (9.3, yc)); arrow(ax, (14.3, yc), (14.9, yc)); arrow(ax, (e0[0] + 0.05, yc), (22.5, yc)); arrow(ax, (e1[0] + 0.05, yc), (33.3, yc))
-    lab(ax, 20.6, yc + 0.3, "block 1", fs=3.6, va="bottom", color=C_VH); lab(ax, 30.0, yc + 0.3, "block 2", fs=3.6, va="bottom", color=C_VH)
-    ax.add_patch(Polygon([(e2[0] + 0.1, yc + 0.85), (46.0, yc + 3.4), (46.0, yc - 3.4), (e2[0] + 0.1, yc + 0.25)], fc="#fbe3c0", ec="0.5", lw=0.3))
-    ax.add_patch(Rectangle((46.1, yc - 3.4), 0.7, 6.8, fc="#f3c98b", ec="0.3", lw=0.4)); lab(ax, 46.45, yc - 3.7, f"frame t\n{T}")
-    mlp(ax, 48.4, yc - 3.4, 5.6, 5.8, [T, W], fc="#7a96b8")
-    vec(ax, 57.9, yc - 3.4, 6.8, fc="#9ec1e3", w=0.7); lab(ax, 58.25, yc - 3.7, f"$c$\n{W}")
-    arrow(ax, (54.3, yc), (57.8, yc))
+    # ======================= input panel (top left)
+    band(ax, 0.5, 20.6, 79.3, "Input: one DIII-D shot", C_IN, h=1.7, fs=5.0)
+    traces(ax, 4.2, 64.6, 15.0, 11.2)
+    tokamak(ax, 10.0, 52.0, 9.0); lab(ax, 10.0, 44.3, "sensors at frame $t$", fs=3.6, color="0.35")
+
+    # ======================= row 1: backbone
+    band(ax, 21.4, 99.5, 79.3, f"Backbone: VisionHOPE-T over the whole shot  ({s['params']} M parameters with neck and head)", C_VH, h=1.7, fs=5.0)
+    by, yc = 76.3, 70.0
+    band(ax, 21.4, 29.3, by, "embedding", GREY); band(ax, 30.0, 49.6, by, f"VisionHOPE-T x {s['blocks']}", C_VH)
+    band(ax, 50.3, 55.6, by, "frame t", NAVY); band(ax, 56.3, 63.4, by, "projection", NAVY)
+    arrow(ax, (19.6, yc), (22.4, yc)); lab(ax, 21.0, yc + 0.5, "$X$", fs=4.0, va="bottom")
+    mlp(ax, 22.6, yc - 3.4, 6.0, 5.8, [s["fin"] + s["extra"], T], fc="#b0b0b0")
+    e0 = fmap(ax, 30.2, yc - 2.5, 3.0, 5.0, seed=1); lab(ax, 31.7, yc - 2.8, f"{s['c']} x L x {s['tokens']}")
+    e1 = fmap(ax, 36.6, yc - 2.5, 3.0, 5.0, seed=2); lab(ax, 38.1, yc - 2.8, f"{s['c']} x L x {s['tokens']}")
+    e2 = fmap(ax, 44.0, yc - 2.5, 3.0, 5.0, seed=4, hl=3); lab(ax, 45.5, yc - 2.8, f"{s['c']} x L x {s['tokens']}")
+    arrow(ax, (28.3, yc), (30.1, yc)); arrow(ax, (e0[0] + 0.05, yc), (36.5, yc)); arrow(ax, (e1[0] + 0.05, yc), (43.9, yc))
+    ax.add_patch(Polygon([(e2[0] + 0.1, yc + 0.85), (51.6, yc + 3.4), (51.6, yc - 3.4), (e2[0] + 0.1, yc + 0.25)], fc="#fbe3c0", ec="0.5", lw=0.3))
+    ax.add_patch(Rectangle((51.7, yc - 3.4), 0.7, 6.8, fc="#f3c98b", ec="0.3", lw=0.4)); lab(ax, 52.05, yc - 3.7, f"{T}")
+    mlp(ax, 53.2, yc - 3.4, 5.4, 5.8, [T, W], fc="#7a96b8")
+    vec(ax, 60.4, yc - 3.4, 6.8, fc="#9ec1e3", w=0.7); lab(ax, 60.75, yc - 3.7, f"$c$: {W}")
+    arrow(ax, (58.9, yc), (60.3, yc))
     # inset: one VisionHOPE-T block
-    band(ax, 67.4, 99.5, by, "VisionHOPE-T block", C_VH)
-    ty = 59.6
-    kernel(ax, 68.0, ty - 1.2, 3, 2.4); lab(ax, 69.2, ty - 1.5, "CPE\n3x3", fs=3.6)
-    node(ax, 72.4, ty, "LN", r=0.8, fs=3.5)
-    scans(ax, 74.2, ty + 0.6, 3.4); lab(ax, 75.9, ty + 4.3, "SRNL scans", fs=3.6, va="bottom")
-    kernel(ax, 74.7, ty - 4.4, 7, 2.4, fc="#b9dfe2"); node(ax, 78.6, ty - 3.2, "$\\sigma$", r=0.7, fs=4.0); lab(ax, 75.9, ty - 4.7, "7x7 dw", fs=3.6)
-    node(ax, 81.2, ty, "+", r=0.7)
-    kernel(ax, 82.6, ty - 1.1, 5, 2.2); lab(ax, 83.7, ty - 1.4, "LePE\n5x5", fs=3.6)
-    node(ax, 86.4, ty, "+", r=0.7); node(ax, 88.3, ty, "LN", r=0.8, fs=3.5)
-    mlp(ax, 89.4, ty - 3.4, 6.8, 5.8, [s["c"], s["ffn"], s["c"]], fc="#7bbac1"); lab(ax, 92.8, ty - 3.7, "GRN FFN", fs=3.6)
-    node(ax, 98.6, ty, "+", r=0.7)
+    band(ax, 64.2, 99.5, by, "one VisionHOPE-T block (128 channels)", C_VH)
+    ox, ty = -2.2, yc
+    kernel(ax, 68.0 + ox, ty - 1.2, 3, 2.4); lab(ax, 69.2 + ox, ty - 1.5, "pos. conv\n3x3", fs=3.6)
+    node(ax, 72.4 + ox, ty, "LN", r=0.8, fs=3.5)
+    scans(ax, 74.2 + ox, ty + 0.6, 3.4); lab(ax, 75.9 + ox, ty + 4.3, "4-direction scans", fs=3.6, va="bottom")
+    kernel(ax, 74.7 + ox, ty - 4.4, 7, 2.4, fc="#b9dfe2"); node(ax, 78.6 + ox, ty - 3.2, "$\\sigma$", r=0.7, fs=4.0)
+    lab(ax, 75.9 + ox, ty - 4.7, "gated 7x7", fs=3.6)
+    node(ax, 81.2 + ox, ty, "+", r=0.7)
+    kernel(ax, 82.6 + ox, ty - 1.1, 5, 2.2); lab(ax, 83.7 + ox, ty - 1.4, "pos. conv\n5x5", fs=3.6)
+    node(ax, 86.4 + ox, ty, "+", r=0.7); node(ax, 88.3 + ox, ty, "LN", r=0.8, fs=3.5)
+    mlp(ax, 89.4 + ox, ty - 3.4, 9.0, 5.8, [s["c"], s["ffn"], s["c"]], fc="#7bbac1"); lab(ax, 93.9 + ox, ty - 3.7, "MLP (GRN)", fs=3.6)
+    node(ax, 99.0, ty, "+", r=0.6)
     for a_, b_ in (((70.45, ty), (71.55, ty)), ((73.2, ty + 0.3), (74.1, ty + 1.6)), ((73.0, ty - 0.5), (74.6, ty - 2.6)), ((77.15, ty - 3.2), (77.85, ty - 3.2)),
                    ((77.65, ty + 1.4), (80.6, ty + 0.4)), ((79.3, ty - 2.9), (80.65, ty - 0.45)), ((81.9, ty), (82.5, ty)), ((84.85, ty), (85.65, ty)),
-                   ((87.1, ty), (87.45, ty)), ((96.3, ty + 0.1), (97.85, ty))):
-        arrow(ax, a_, b_, lw=0.4)
-    ax.plot([67.8, 67.8, 86.4, 86.4], [ty - 1.3, ty - 5.9, ty - 5.9, ty - 0.75], color="0.5", lw=0.35, ls=(0, (2, 1)))
-    ax.plot([87.6, 87.6, 98.6, 98.6], [ty - 0.5, ty - 5.9, ty - 5.9, ty - 0.75], color="0.5", lw=0.35, ls=(0, (2, 1)))
+                   ((87.1, ty), (87.45, ty))):
+        arrow(ax, (a_[0] + ox, a_[1]), (b_[0] + ox, b_[1]), lw=0.4)
+    arrow(ax, (96.4, ty + 0.1), (98.35, ty), lw=0.4)
+    ax.plot([67.8 + ox, 67.8 + ox, 86.4 + ox, 86.4 + ox], [ty - 1.3, ty - 5.9, ty - 5.9, ty - 0.75], color="0.5", lw=0.35, ls=(0, (2, 1)))
+    ax.plot([87.6 + ox, 87.6 + ox, 99.0, 99.0], [ty - 0.5, ty - 5.9, ty - 5.9, ty - 0.6], color="0.5", lw=0.35, ls=(0, (2, 1)))
 
-    # ======================= row B: neck + head
-    band(ax, 0.5, 99.5, 49.6, "Neck and head: zero-init gate and the input-dependent Rydberg register", C_QPU, h=1.7, fs=5.1)
-    by, yc = 46.6, 39.6
-    band(ax, 0.8, 22.6, by, "frame trunk", GREY); band(ax, 23.3, 38.0, by, "neck (gate)", C_GATE); band(ax, 38.7, 44.6, by, "encode", C_QPU2)
-    band(ax, 45.3, 72.3, by, f"Rydberg register {s['regs']} x {s['atoms']}", C_QPU); band(ax, 73.0, 86.6, by, "head", C_HEAD)
-    band(ax, 87.3, 99.5, by, "output", C_OUT)
-    vec(ax, 1.2, yc - 3.4, 6.8, fc="#cfd8e3", w=0.7); lab(ax, 1.55, yc - 3.7, "$x_t$")
-    mlp(ax, 2.6, yc - 3.6, 18.6, 6.6, [s["fin"], W, W, W, W, W], fc="#b0b0b0", labels=[str(s["fin"]), str(W), "", f"x{s['depth']} res.", "", str(W)])
-    vec(ax, 21.6, yc - 3.4, 6.8, fc="#d9d9d9", w=0.7); lab(ax, 21.95, yc - 3.7, "$z$")
-    mlp(ax, 24.0, yc - 1.8, 4.2, 4.4, [W, W], fc=C_GATE2, labels=["", ""]); lab(ax, 26.1, yc - 1.7, "$G$", fs=4.0)
-    node(ax, 29.7, yc + 0.7, "tanh", r=0.95, fs=3.6); node(ax, 32.4, yc + 0.7, "$\\odot$"); node(ax, 35.4, yc - 1.8, "+")
-    vec(ax, 32.05, yc + 2.3, 3.0, fc="#9ec1e3", w=0.7); lab(ax, 31.6, yc + 3.8, "$c$", fs=4.2, ha="right", va="center", color=C_VH)
-    arrow(ax, (32.4, yc + 2.25), (32.4, yc + 1.6), color=C_VH)
-    vec(ax, 36.6, yc - 3.4, 6.8, fc="#cdbfe6", w=0.7); lab(ax, 36.95, yc - 3.7, "$h$")
-    arrow(ax, (22.35, yc + 0.2), (24.3, yc + 0.2)); arrow(ax, (28.0, yc + 0.7), (28.7, yc + 0.7)); arrow(ax, (30.7, yc + 0.7), (31.5, yc + 0.7))
-    arrow(ax, (22.35, yc - 2.6), (34.5, yc - 2.0), rad=0.08); arrow(ax, (33.1, yc + 0.1), (34.8, yc - 1.2)); arrow(ax, (36.25, yc - 1.8), (36.55, yc - 1.8))
-    mlp(ax, 38.8, yc - 1.4, 4.8, 5.0, [W, s["q_in"]], fc=C_QPU2); lab(ax, 41.2, yc - 1.7, "tanh", fs=3.6)
-    atoms(ax, 45.5, yc - 3.6, 6.2, 3.4)
-    circuit(ax, 52.4, yc - 3.4, 16.2, 7.4, layers=s["layers"], atoms=s["atoms"]); lab(ax, 70.6, yc + 4.3, f"x {s['regs']}", fs=4.2, color=RUST, ha="left")
-    vec(ax, 70.0, yc - 2.4, 4.6, fc="#f3c98b", w=0.7); lab(ax, 70.35, yc - 2.7, f"$\\langle Z\\rangle$\n{R}")
-    arrow(ax, (37.35, yc), (39.1, yc + 0.6)); arrow(ax, (43.6, yc + 1.0), (45.4, yc + 1.0)); arrow(ax, (51.8, yc + 1.0), (52.3, yc + 1.0))
-    arrow(ax, (68.7, yc - 0.1), (69.9, yc - 0.1))
-    mlp(ax, 73.2, yc + 0.3, 4.2, 4.0, [R, s["out"]], fc="#5fa98a"); lab(ax, 75.3, yc + 0.0, "$\\alpha W_q$", fs=3.9)
-    mlp(ax, 73.2, yc - 9.0, 4.2, 4.0, [W, s["out"]], fc="#5fa98a"); lab(ax, 75.3, yc - 9.3, "$W_o$", fs=3.9)
-    mlp(ax, 78.6, yc - 9.0, 4.2, 4.0, [s["fin"], s["out"]], fc="#5fa98a"); lab(ax, 80.7, yc - 9.3, "$W_s$", fs=3.9)
-    lab(ax, 78.4, yc - 6.5, "$x_t$", fs=3.9, ha="right", va="center")
-    node(ax, 84.6, yc - 1.0, "+")
-    arrow(ax, (70.75, yc - 0.1), (73.4, yc + 2.4)); arrow(ax, (77.4, yc + 2.4), (83.9, yc - 0.5))
-    arrow(ax, (37.0, yc - 3.5), (73.4, yc - 6.5), style="angle,angleA=-90,angleB=180,rad=0", color="0.45")
-    arrow(ax, (77.4, yc - 6.5), (84.1, yc - 1.7), color="0.45"); arrow(ax, (82.8, yc - 6.5), (84.4, yc - 1.8), color="0.45")
-    arrow(ax, (85.45, yc - 1.0), (88.0, yc - 1.0))
-    lcfs(ax, 92.4, yc - 0.6, 5.6)
-    lab(ax, 93.4, yc - 4.6, f"{s['out']} = 7 shape scalars\n+ 64 boundary rays", fs=3.7)
+    # ======================= row 2: neck + head
+    band(ax, 21.4, 46.6, 60.6, "Neck", C_GATE, h=1.7, fs=5.0); band(ax, 47.3, 99.5, 60.6, "Head: input-dependent Rydberg register + linear read-out", C_QPU, h=1.7, fs=5.0)
+    by, yc = 57.6, 50.8
+    band(ax, 21.4, 34.6, by, "frame encoder (MLP)", GREY); band(ax, 35.3, 46.6, by, "fusion gate", C_GATE2, ha="left")
+    band(ax, 47.3, 53.4, by, "encoding", C_QPU2); band(ax, 54.1, 74.3, by, f"Rydberg register {s['regs']} x {s['atoms']}", C_QPU)
+    band(ax, 75.0, 87.4, by, "linear read-out", C_HEAD); band(ax, 88.1, 99.5, by, "shape output", C_OUT)
+    arrow(ax, (17.0, yc), (21.6, yc)); lab(ax, 19.3, yc + 0.5, f"$x_t$: {s['fin']}", fs=3.7, va="bottom")
+    mlp(ax, 21.6, yc - 3.6, 12.2, 6.6, [s["fin"], W, W, W], fc="#b0b0b0", labels=[str(s["fin"]), str(W), f"x{s['depth']}", str(W)])
+    vec(ax, 34.1, yc - 3.4, 6.8, fc="#d9d9d9", w=0.6); lab(ax, 34.4, yc - 3.7, "$z$")
+    mlp(ax, 35.3, yc - 1.8, 3.4, 4.4, [W, W], fc=C_GATE2, labels=["", ""]); lab(ax, 37.0, yc - 1.7, "$G$", fs=4.0)
+    node(ax, 39.8, yc + 0.7, "tanh", r=0.95, fs=3.5); node(ax, 42.6, yc + 0.7, "$\\odot$"); node(ax, 44.6, yc - 1.8, "+")
+    vec(ax, 45.6, yc - 3.4, 6.8, fc="#cdbfe6", w=0.6); lab(ax, 45.9, yc - 3.7, "$h$")
+    arrow(ax, (34.75, yc + 0.2), (35.6, yc + 0.2)); arrow(ax, (38.4, yc + 0.7), (38.85, yc + 0.7)); arrow(ax, (40.75, yc + 0.7), (41.75, yc + 0.7))
+    arrow(ax, (34.75, yc - 2.6), (43.75, yc - 2.0), rad=0.08); arrow(ax, (43.3, yc + 0.1), (44.1, yc - 1.15)); arrow(ax, (45.45, yc - 1.8), (45.55, yc - 1.8))
+    ax.plot([60.75, 60.75, 42.6], [yc + 15.8, 63.3, 63.3], color=C_VH, lw=0.55)
+    arrow(ax, (42.6, 63.3), (42.6, yc + 1.6), color=C_VH); lab(ax, 43.0, 63.6, "$c$", fs=4.0, color=C_VH, ha="left", va="bottom")
+    mlp(ax, 47.3, yc - 1.4, 4.6, 5.0, [W, s["q_in"]], fc=C_QPU2); lab(ax, 49.6, yc - 1.7, "$u$, tanh", fs=3.6)
+    atoms(ax, 53.9, yc - 3.6, 5.2, 3.4)
+    circuit(ax, 59.4, yc - 3.4, 13.6, 7.4, layers=s["layers"], atoms=s["atoms"])
+    vec(ax, 73.6, yc - 2.4, 4.6, fc="#f3c98b", w=0.6); lab(ax, 73.9, yc - 2.7, f"$\\langle Z\\rangle$\n{s['regs']} x {s['atoms']}")
+    arrow(ax, (46.25, yc), (47.6, yc + 0.6)); arrow(ax, (51.6, yc + 1.0), (53.8, yc + 1.0)); arrow(ax, (59.0, yc + 1.0), (59.3, yc + 1.0))
+    arrow(ax, (73.0, yc - 0.1), (73.55, yc - 0.1))
+    mlp(ax, 75.2, yc + 0.3, 4.0, 4.0, [R, s["out"]], fc="#5fa98a"); lab(ax, 77.2, yc + 0.0, "$\\alpha W_q$", fs=3.9)
+    mlp(ax, 75.2, yc - 7.8, 4.0, 4.0, [W, s["out"]], fc="#5fa98a"); lab(ax, 77.2, yc - 8.1, "$W_o$", fs=3.9)
+    mlp(ax, 80.4, yc - 7.8, 4.0, 4.0, [s["fin"], s["out"]], fc="#5fa98a"); lab(ax, 82.4, yc - 8.1, "$W_s$", fs=3.9)
+    lab(ax, 80.2, yc - 5.3, "$x_t$", fs=3.9, ha="right", va="center")
+    node(ax, 86.2, yc - 1.0, "+")
+    arrow(ax, (74.25, yc - 0.1), (75.4, yc + 2.4)); arrow(ax, (79.2, yc + 2.4), (85.5, yc - 0.5))
+    arrow(ax, (45.9, yc - 3.5), (75.4, yc - 5.3), style="angle,angleA=-90,angleB=180,rad=0", color="0.45")
+    arrow(ax, (79.2, yc - 5.3), (85.7, yc - 1.7), color="0.45"); arrow(ax, (84.4, yc - 5.3), (86.0, yc - 1.8), color="0.45")
+    arrow(ax, (87.05, yc - 1.0), (89.0, yc - 1.0))
+    lcfs(ax, 92.6, yc - 0.6, 5.2)
+    lab(ax, 93.6, yc - 4.5, f"$y$: {s['out']} = 7 shape scalars\n+ 64 boundary rays", fs=3.6)
 
-    # ======================= row C: ensemble and psi assembly
-    band(ax, 0.5, 99.5, 26.8, "F18K ensemble and psi assembly", C_ENS, h=1.7, fs=5.1)
-    by, yc = 23.8, 16.6
-    band(ax, 0.8, 17.2, by, "psi trunks x 6", C_PSI); band(ax, 17.9, 29.0, by, "PCA basis", C_PSI)
-    band(ax, 29.7, 58.4, by, "shape-head ensemble", C_HEAD); band(ax, 59.1, 87.0, by, "psi edits toward the heads", GREY)
+    # ======================= row 3: ensemble and psi reconstruction
+    band(ax, 0.5, 99.5, 38.4, "Ensemble and psi reconstruction", C_ENS, h=1.7, fs=5.0, ha="left")
+    by, yc = 35.4, 27.4
+    band(ax, 0.8, 17.2, by, "psi networks (MLP) x 6", C_PSI); band(ax, 17.9, 29.0, by, "PCA basis", C_PSI)
+    band(ax, 29.7, 58.4, by, "shape networks", C_HEAD, ha="left"); band(ax, 59.1, 87.0, by, "psi correction to the predicted shape", GREY)
     band(ax, 87.7, 99.5, by, "output", C_OUT)
+    lab(ax, 1.5, yc + 4.0, f"$x_t$: {s['base']}", fs=3.7, ha="left", va="bottom")
     vec(ax, 1.2, yc - 3.4, 6.4, fc="#cfd8e3", w=0.7)
     mlp(ax, 2.6, yc - 3.6, 11.0, 6.2, [s["base"], s["psi_w"], s["psi_w"], s["psi_w"], s["psi_k"]], fc="#9d8fc9",
         labels=[str(s["base"]), "", f"{s['psi_w']} x{s['psi_d']}", "", str(s["psi_k"])])
-    vec(ax, 14.6, yc - 3.0, 5.6, fc="#cdbfe6", w=0.7); lab(ax, 14.95, yc - 3.3, "$c_k$")
+    vec(ax, 14.6, yc - 3.0, 5.6, fc="#cdbfe6", w=0.7); lab(ax, 14.95, yc - 3.3, f"{s['psi_k']}")
     modes(ax, 18.3, yc - 3.0, 7.6, 6.2); node(ax, 27.6, yc + 0.1, "$\\Sigma$")
     arrow(ax, (13.9, yc), (14.55, yc)); arrow(ax, (15.35, yc), (18.2, yc)); arrow(ax, (26.0, yc + 0.1), (26.7, yc + 0.1))
-    gl = [("mlp", "MLP x 12", "0.45"), ("reg", "MLP+register x 5", "0.30"), ("vh", "VisionHOPE+register x 2", "0.25")]
+    gl = [("vh", "VisionHOPE + register x 2", "0.25"), ("mlp", "MLP x 12", "0.45"), ("reg", "MLP + register x 5", "0.30")]
     for i, (k, t_, w_) in enumerate(gl):
-        gy = yc + 4.4 - i * 3.0; glyph(ax, 44.6, gy - 1.2, k, w=4.0, h=2.4)
+        gy = yc + 4.2 - i * 3.0; glyph(ax, 46.6, gy - 1.2, k, w=4.0, h=2.4)
         lab(ax, 30.4, gy, w_, fs=3.7, ha="left", va="center", color=C_HEAD); lab(ax, 33.2, gy, t_, fs=3.6, ha="left", va="center")
-        arrow(ax, (48.7, gy), (53.4, yc + 1.4), color="0.5")
-    node(ax, 54.4, yc + 1.4, "$\\Sigma$")
-    glyph(ax, 30.6, yc - 8.2, "mlp", w=4.0, h=2.4); lab(ax, 32.6, yc - 8.5, "q95, betaN x 3", fs=3.6)
-    glyph(ax, 38.4, yc - 8.2, "mlp", w=4.0, h=2.4); lab(ax, 40.4, yc - 8.5, "X-point x 3", fs=3.6)
+        arrow(ax, (50.7, gy), (53.5, yc + 1.4), color="0.5")
+    ax.plot([93.6, 93.6, 48.6], [44.1, 41.0, 41.0], color="0.45", lw=0.55)
+    arrow(ax, (48.6, 41.0), (48.6, yc + 5.45), color="0.45"); lab(ax, 49.1, 41.4, "$y$", fs=3.9, ha="left", va="bottom")
+    node(ax, 54.4, yc + 1.4, "$\\Sigma$"); lab(ax, 54.4, yc + 0.3, f"{s['out']}", fs=3.6)
+    glyph(ax, 30.6, yc - 8.2, "mlp", w=4.0, h=2.4); lab(ax, 32.6, yc - 8.5, f"q95, betaN\n$x_t$: {s['qb_in']}", fs=3.5)
+    glyph(ax, 38.4, yc - 8.2, "mlp", w=4.0, h=2.4); lab(ax, 40.4, yc - 8.5, f"X-points\n$x_t$: {s['fin']}", fs=3.5)
     arrow(ax, (42.5, yc - 7.0), (73.0, yc - 0.2), style="angle,angleA=0,angleB=90,rad=0", color="0.45")
-    ax.plot([30.5, 29.7, 29.7, 97.0], [yc - 7.0, yc - 7.0, yc - 10.0, yc - 10.0], color="0.45", lw=0.5)
+    ax.plot([30.5, 29.7, 29.7, 97.0], [yc - 7.0, yc - 7.0, yc - 11.2, yc - 11.2], color="0.45", lw=0.5)
+    arrow(ax, (97.0, yc - 11.2), (97.0, yc - 1.4), color="0.45")
     field(ax, 60.2, yc - 3.6, 7.2, 7.2); lcfs(ax, 63.8, yc - 0.0, 4.6, color="#e8a33d", ls=(0, (2, 1)), rays=False, lw=0.6)
+    lab(ax, 63.8, yc - 3.9, "$\\psi_0$", fs=4.0)
     arrow(ax, (67.6, yc), (78.4, yc)); field(ax, 78.6, yc - 3.6, 7.2, 7.2, shift=0.06)
     lcfs(ax, 82.2, yc + 0.0, 4.6, color=TEAL, rays=False, lw=0.7)
-    lab(ax, 73.0, yc + 0.4, "shift, warps,\nshape fit", fs=3.6, va="bottom", color="0.3")
     arrow(ax, (27.6, yc - 0.8), (60.1, yc - 3.3), style="angle,angleA=-90,angleB=180,rad=0", color="0.45")
     arrow(ax, (55.25, yc + 1.4), (63.6, yc + 3.7), rad=-0.3, color=TEAL)
     arrow(ax, (85.9, yc), (88.6, yc))
-    field(ax, 88.8, yc - 2.8, 5.6, 5.6, shift=0.06); lab(ax, 91.6, yc - 3.1, "psi 65 x 65", fs=3.8)
+    field(ax, 88.8, yc - 2.8, 5.6, 5.6, shift=0.06); lab(ax, 91.6, yc - 3.1, "$\\psi$: 65 x 65", fs=3.8)
     lab(ax, 97.4, yc + 0.0, "q95\nbetaN", fs=4.0, va="center")
-    arrow(ax, (97.0, yc - 10.0), (97.0, yc - 1.4), color="0.45")
 
-    # ======================= row D: loss and register mechanism
-    band(ax, 0.5, 99.5, 2.4, "Loss and the input-dependent Rydberg register", PLUM, h=1.7, fs=5.1)
-    lab(ax, 24.0, 0.2, r"$\mathcal{L}=\frac{1}{\sum m_{ik}}\sum_{i} w_i \sum_{k=1}^{71}\lambda_k\, m_{ik}\,(\hat y_{ik}-y_{ik})^2,\quad \lambda_{\rm shape}=9.14,\ \lambda_{\rm ray}=1$", fs=4.5)
-    lab(ax, 24.0, -5.0, r"$S = 0.55\,R^2_{\psi} + 0.15\,R^2_{q_{95},\beta_N} + 0.10\,(1-D_{\rm LCFS}) + 0.20\,\overline{R^2}_{\rm shape}$", fs=4.4)
-    lab(ax, 74.0, 0.2, r"$u=\tanh(W_{\rm in}h),\quad \delta_{lk}(u)=b_{lk}+\pi\tanh(W u)_{lk},\quad g_k(u)=\sigma(W_g u)_k$", fs=4.4)
-    lab(ax, 74.0, -3.3, r"$|\psi(u)\rangle=\prod_{l=1}^{4}\left[e^{-i\tau_l V}\bigotimes_{k=1}^{10}R_z(\delta_{lk})\,R_x(\Omega_l\,g_k)\right]|0\rangle^{\otimes 10},"
+    # ======================= row 4: loss and register mechanism
+    band(ax, 0.5, 99.5, 10.6, "Loss and the input-dependent Rydberg register", PLUM, h=1.7, fs=5.0)
+    lab(ax, 24.0, 8.3, r"$\mathcal{L}=\frac{1}{\sum m_{ik}}\sum_{i} w_i \sum_{k=1}^{71}\lambda_k\, m_{ik}\,(\hat y_{ik}-y_{ik})^2,\quad \lambda_{\rm shape}=9.14,\ \lambda_{\rm ray}=1$", fs=4.5)
+    lab(ax, 24.0, 2.6, r"$S = 0.55\,R^2_{\psi} + 0.15\,R^2_{q_{95},\beta_N} + 0.10\,(1-D_{\rm LCFS}) + 0.20\,\overline{R^2}_{\rm shape}$", fs=4.4)
+    lab(ax, 74.0, 8.3, r"$u=\tanh(W_{\rm in}h),\quad \delta_{lk}(u)=b_{lk}+\pi\tanh(W u)_{lk},\quad g_k(u)=\sigma(W_g u)_k$", fs=4.4)
+    lab(ax, 74.0, 4.8, r"$|\psi(u)\rangle=\prod_{l=1}^{4}\left[e^{-i\tau_l V}\bigotimes_{k=1}^{10}R_z(\delta_{lk})\,R_x(\Omega_l\,g_k)\right]|0\rangle^{\otimes 10},"
         r"\quad V=\sum_{i<j}\frac{C_6}{|\mathbf{r}_i-\mathbf{r}_j|^6}\,n_i n_j$", fs=4.4)
-    lab(ax, 74.0, -7.6, r"$y = W_o h + W_s x_t + \alpha\, W_q\,\langle Z\rangle,\qquad h = z+\tanh(Gz)\odot c$", fs=4.4)
+    lab(ax, 74.0, 0.5, r"$y = W_o h + W_s x_t + \alpha\, W_q\,\langle Z\rangle,\qquad h = z+\tanh(Gz)\odot c$", fs=4.4)
     fig.savefig(OUT, dpi=300, bbox_inches="tight", pad_inches=0.03, facecolor="white")
     fig.savefig(OUT.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.03)
     print(f"wrote {OUT}")

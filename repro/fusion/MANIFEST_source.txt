@@ -120,9 +120,9 @@ daa6db83ea5d2b4b01d3a0853688505cc6a4c5386968e523637fd83a05724ac0      11410  rep
 c6cf4cca2ac098863d2d10336e91db34b88abe39f5ed5a5ac9fbdd6a19345339       3052  repro/fusion/entry_configs.json
 11fb530522610ad7d7b807c14847b55ef6d62cca60f99468d7182364c16559f8       7886  repro/fusion/export.py
 84119f9026c41bc6c47bd832bf4226787a7a6896dd46b9e949d61d80f8ce51ee       1992  repro/fusion/fetch_weights.py
-8aabe7256844a5c0eeff00b1b7638146b4b8dd7c6ff57a48aed0f54e1559fee8      25545  repro/fusion/fig_model.py
+de5aad35c46cc2ba9f7af148eea0e3f148e0d016cd66ff6f2bca63d2a27f7fff      28568  repro/fusion/fig_model.py
 de93b20dddb87f53e03a19ad9230aeed5df8fe88ac40c09c2beff8480df12b2e       4102  repro/fusion/infer.sh
-7923012a2c9dfdaa9a2b71e1c6b3a945009f0ab48ba458139cd5eacd3c872260     423576  repro/fusion/model.png
+2c03403f29e68e555677ce7bcc36673475324f3f6513695733862ad2148911da     470275  repro/fusion/model.png
 c3ee65f7b131e7db78f91b3b74c6d3bc5b6db05a0936a312210f8520de65d535       3414  repro/fusion/requirements.lock
 1b7f0830f058801c74579fe435bd3762a05e9d8f3f04fa23af1ac773e726e045       6884  repro/fusion/train_all.sh
 fda5972bb449248e7415bf6212a84c8f5b51493be5ef609199d58f13cbfa227d       2206  runs/final_fold.sh
