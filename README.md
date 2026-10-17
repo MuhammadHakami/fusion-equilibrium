@@ -13,7 +13,7 @@ simulated 30-atom Rydberg register whose detunings and drives depend on each inp
 | | Development public S | Paired gain vs F17K (150 held-out shots) |
 |---|---|---|
 | F17K | 0.996223 | — |
-| **F18K** (Final) | pending | +0.000084 [+0.000036, +0.000134] |
+| **F18K** (Final) | **0.996278** | +0.000084 [+0.000036, +0.000134] |
 
 ## Run
 
