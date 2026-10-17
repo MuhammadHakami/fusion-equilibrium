@@ -3,15 +3,16 @@
 # (seeds as shipped):  CAND=F15K = F14K with Huber-loss (delta 0.3) shape heads J1RLHA and q/b heads QHAR2Hu
 # (doc 35 §45l);  CAND=F16K = F15K + Ip-sign canonical twins J1RLHACS s1-4 / QHAR2HuCS s1-2 that replace the heads on reversed-Ip shots
 # (doc 35 §45o);  CAND=F17K (default; the adopted Final configuration, 2026-10-17) = F16K with the Ip-sign canonical register heads J1QHCS (replacing J1QH) and X-point heads XPACS (replacing XPA)
-# on every shot (doc 35 §45s / §45w; same compute as F16K). Plus the fast-path register heads J1QH (§43l), the gradient-boosted li tree
+# on every shot (doc 35 §45s / §45w; same compute as F16K);  CAND=F18K (default; the Final configuration, 2026-10-18) = F17K + the VisionHOPE +
+# input-dependent Rydberg-register shape heads V60 s1-2 (step 9; doc 35 §47c / §47f; +3.1 GB10-hours). Plus the fast-path register heads J1QH (§43l), the gradient-boosted li tree
 # (§45a), kw2 at inference.
 # Reference machine: one NVIDIA GB10 (CUDA). GPU time alone per component: psi trunks ~1.5 h, MLP heads ~32 min each, PI-KAN register heads
 # ~4.2 h each, the three J1QH heads 2.8 h together, li tree ~3 min, NAS entry ensemble ~2 h -> F15K ~22.2 GB10-hours, F16K ~25.4 (6 more
 # MLP heads). See README.md for the A100 conversion.
 set -e; cd "$(dirname "$0")/../.."; export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0} PYTHONUNBUFFERED=1; P=.venv/bin/python; F=paper/strat/fusion
-CAND=${CAND:-F17K}; case "$CAND" in F15K|F16K|F17K) ;; *) echo "CAND must be F15K, F16K or F17K"; exit 2;; esac
+CAND=${CAND:-F18K}; case "$CAND" in F15K|F16K|F17K|F18K) ;; *) echo "CAND must be F15K, F16K, F17K or F18K"; exit 2;; esac
 TW=0; [ "$CAND" = F15K ] || TW=1                                           # the Ip-sign canonical twins (F16K, F17K)
-CN=""; QT=J1QH; XT=_XPA; [ "$CAND" = F17K ] && { CN="STRAT_CANON=2"; QT=J1QHCS; XT=_XPACS; }   # F17K: canonical register / X-point heads
+CN=""; QT=J1QH; XT=_XPA; { [ "$CAND" = F17K ] || [ "$CAND" = F18K ]; } && { CN="STRAT_CANON=2"; QT=J1QHCS; XT=_XPACS; }   # F17K / F18K: canonical register / X-point heads
 # 1 NAS entry ensemble (7 members incl. the srr register model coupled_c13-mlp, + its stage-1 init trunk1_t5) on all labelled shots
 QW_ENTRY_CFGS=repro/fusion/entry_configs.json $P $F/entry_alldata.py      # configs as shipped (t19-ew2 members: clip 1.0)
 # 2 psi trunks (PSI-F config + Ip-sign canonical inputs + all data), seeds 2, 1, 3
@@ -43,4 +44,10 @@ for s in 1 2 3; do env $E STRAT_ALL=1 STRAT_THZ=1 STRAT_HFULL=1 STRAT_QPHYS=2 ST
 #    (PT = a Python with catboost==1.2.10; ours is .venv-tdc). Test-fold predictions come from runs/final_fold.sh (dumppub / litreepred).
 PT=${PT:-.venv-tdc/bin/python}; export QW_TREE_STEM=head_boundary_v8_J1RLHA_s1     # tree inputs = the J1RLHA input pipeline (identical to J1RL's)
 $P $F/gbdt_shape.py dump && $PT $F/gbdt_shape.py litree
+# 9 (F18K) VisionHOPE + register shape heads V60 (quota_fusion.py: 2 VisionHOPE-T blocks, width 128, 8 tokens per frame, on 32-frame crops of
+#   128 shots per step; zero-init gate into the J1QHCS-recipe MLP trunk 2048 x 4; head = linear + skip + alpha x 3 x 10-atom register;
+#   TRAIN split, 60 epochs = 20.4 k steps, ~1.5 h per seed alone on the GB10; VisionHOPE CUDA kernels are JIT-built with ninja), seeds 1-2
+V='{"backbone": "vhope", "seq": true, "crop": 32, "shots": 128, "bb_width": 128, "bb_depth": 2, "tokens": 8}'
+[ "$CAND" = F18K ] && for s in 1 2; do env QW_QFAST=1 QW_MAGFIX=X_magfix STRAT_THZ=1 STRAT_HFULL=1 STRAT_LIPHYS=1 STRAT_QPHYS=2 STRAT_CANON=2 \
+  $P $F/quota_fusion.py final V60 "$V" $s 60; done
 echo "TRAIN_ALL_DONE $CAND $(date -Is)"

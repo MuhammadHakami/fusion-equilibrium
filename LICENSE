@@ -19,3 +19,8 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+The files under baseline/sophelio-starter/ are the organizers' starter kit, MIT-licensed by Sophelio and the
+Fusion Equilibrium Challenge authors (see baseline/sophelio-starter/LICENSE).
+The files under baseline/VisionHOPE/ are the VisionHOPE runtime subset, MIT-licensed by its authors (github.com/PSRben/VisionHOPE;
+see baseline/VisionHOPE/LICENSE and THIRD_PARTY_NOTICES.md).

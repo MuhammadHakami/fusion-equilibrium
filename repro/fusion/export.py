@@ -25,9 +25,25 @@ SEARCH = ["paper/strat/fusion", "paper/sophelio", "baseline/sophelio-starter/fus
           "paper/strat/fusion/fb"]
 SHELL = ["repro/fusion/train_all.sh", "repro/fusion/infer.sh", "runs/final_fold.sh"]
 EXTRA = ["repro/fusion/README.md", "repro/fusion/requirements.lock", "repro/fusion/entry_configs.json", "repro/fusion/MANIFEST_runtime.txt",
-         "repro/fusion/export.py", "repro/fusion/fetch_weights.py", "baseline/sophelio-starter/LICENSE"]
-ROOT_FILES = {"repro/fusion/LICENSE": "LICENSE", "repro/fusion/PACKAGE_README.md": "README.md", "repro/fusion/gitignore": ".gitignore"}     # package root files
+         "repro/fusion/export.py", "repro/fusion/fetch_weights.py", "baseline/sophelio-starter/LICENSE", "repro/fusion/fig_model.py",
+         "repro/fusion/model.png", "formal/lakefile.toml", "formal/lean-toolchain", "formal/lake-manifest.json",
+         "formal/QuotaScaling/BandGate.lean", "formal/QuotaScaling/CompetitionBlend.lean", "formal/QuotaScaling/ScoreCeiling.lean",
+         "formal/QuotaScaling/NoiseRobust.lean"]
+ROOT_FILES = {"repro/fusion/LICENSE": "LICENSE", "repro/fusion/PACKAGE_README.md": "README.md", "repro/fusion/gitignore": ".gitignore",
+              "repro/fusion/formal_root.lean": "formal/QuotaScaling.lean"}                   # Lean root: only the Fusion proofs     # package root files
 ENTRY_RE = re.compile(r"(?:\$F/|paper/strat/fusion/|paper/sophelio/)([A-Za-z0-9_]+\.py)")
+VH_SRC, VH_KEEP = "baseline/VisionHOPE", ("__init__.py", "LICENSE", "THIRD_PARTY_NOTICES.md", "CITATION.cff", "README.md", "models", "utils")
+VH_LINK = "baseline/vh_pkg/visionhope"                               # quota_fusion.VH: import visionhope.* via this relative symlink
+
+
+def vendor_visionhope() -> list[str]:
+    """VisionHOPE runtime subset (MIT, github.com/PSRben/VisionHOPE): package root files + models/ + utils/ (incl. the CUDA sources)."""
+    out = []
+    for k in VH_KEEP:
+        p = ROOT / VH_SRC / k
+        files = [p] if p.is_file() else sorted(f for f in p.rglob("*") if f.is_file() and "__pycache__" not in f.parts)
+        out.extend(str(f.relative_to(ROOT)) for f in files)
+    return out
 
 
 def entry_scripts() -> list[Path]:
@@ -72,7 +88,7 @@ def runtime_files() -> list[tuple[str, str, int, str]]:
     for line in (ROOT / "repro/fusion/MANIFEST_runtime.txt").read_text().splitlines():
         if line.startswith("## "):
             kind = "meta" if line.startswith("## B") else "cache" if line.startswith("## C") else None if line.startswith("## D") else \
-                   "weights" if line.startswith(("## A", "## F16K", "## F17K")) else kind
+                   "weights" if line.startswith(("## A", "## F16K", "## F17K", "## F18K")) else kind
         parts = line.split()
         if len(parts) == 4 and re.fullmatch(r"[0-9a-f]{64}", parts[0]):
             if kind is None:
@@ -97,8 +113,14 @@ def main() -> None:
         sys.exit("out_dir must lie outside the repository")
     src = closure(entry_scripts())
     rel_src = [str(p.relative_to(ROOT)) for p in src] + SHELL + EXTRA
+    vh = ROOT / "paper/strat/fusion/quota_fusion.py" in src
+    rel_src += vendor_visionhope() if vh else []
     for r in rel_src:
         (out / r).parent.mkdir(parents=True, exist_ok=True); shutil.copy2(ROOT / r, out / r)
+    if vh:
+        (out / VH_LINK).parent.mkdir(parents=True, exist_ok=True)
+        if not (out / VH_LINK).is_symlink():
+            os.symlink("../VisionHOPE", out / VH_LINK)
     for s_, d_ in ROOT_FILES.items():
         shutil.copy2(ROOT / s_, out / d_)
     linked, listed = 0, {"weights": [], "cache": []}

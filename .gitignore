@@ -9,3 +9,4 @@ runs/sophelio_sota/submission_*/
 .venv*/
 __pycache__/
 !baseline/sophelio-starter/fusion_scoring/masks/*.npz
+.lake/

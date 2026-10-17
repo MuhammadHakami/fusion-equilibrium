@@ -359,14 +359,17 @@ class QuantumBlock(nn.Module):
 class ConditionedGeometryBlock(nn.Module):
     """Rydberg block whose atom GEOMETRY is input-conditioned (qubits-on-the-go).
 
-    positions(x) = base (learnable) + max_shift * tanh(hypernet(h)) — bounded so
-    every emitted register stays inside the hardware envelope (min spacing via
-    distance clamp; 2D or 3D per `dims`). Blockade energies are computed
-    per-sample and batched. Detunings remain input-conditioned as before.
+    positions(x) = base (learnable) + max_shift * tanh(hypernet(h)). The shift
+    is bounded, but the learnable base and pair spacing are not constrained to
+    a hardware-feasible layout. The distance clamp regularizes the simulated
+    interaction only; it does not move overlapping atoms apart. Blockade
+    energies are computed per sample and batched. Detunings remain
+    input-conditioned as before.
     """
 
     MIN_DIST = 0.5   # in blockade-radius units (envelope; exact numbers from AG-0)
     MAX_SHIFT = 0.6
+    noise = 0.0      # §48c: training-time physical noise - x, y, z tweezer jitter (spacing units), detuning sd noise * pi, Rabi sd noise (relative)
 
     def __init__(self, d_in: int, n: int, layers: int = 4, dims: int = 2,
                  readout: str | None = None):
@@ -397,6 +400,8 @@ class ConditionedGeometryBlock(nn.Module):
         b = h.shape[0]
         shift = self.MAX_SHIFT * torch.tanh(self.geo(h)).reshape(b, self.n, self.dims)
         pos = self.pos0.unsqueeze(0) + shift                        # (B, n, dims)
+        if self.training and self.noise > 0:
+            pos = pos + self.noise * torch.randn_like(pos)          # position disorder of the trapped atoms (x, y, z)
         d = torch.cdist(pos, pos).clamp(min=self.MIN_DIST)
         v = d.pow(-6)[:, self.iu[0], self.iu[1]]                    # (B, P)
         return v @ self.pairbits.T                                  # (B, 2^n)
@@ -408,11 +413,20 @@ class ConditionedGeometryBlock(nn.Module):
         state = torch.zeros(b, 2**n, dtype=torch.complex64, device=h.device)
         state[:, 0] = 1.0
         eng = self._energies(h).to(torch.complex64)                 # (B, 2^n)
+        noisy = self.training and self.noise > 0
+        if noisy:
+            det = det + np.pi * self.noise * torch.randn_like(det)     # laser detuning noise per atom and layer
         for l in range(self.layers):
-            gx = rx_gate(self.omega[l].expand(1))[0]
-            for k in range(n):
-                dphase = rz_phases(det[:, l, k]).unsqueeze(-1)
-                state = apply_1q(state, dphase * gx.unsqueeze(0), k, n)
+            if fast_layers():                                       # §47: one batched layer of single-qubit gates (same circuit)
+                om = self.omega[l].expand(1, n) if not noisy else \
+                    (self.omega[l] * (1 + self.noise * torch.randn(b, 1, device=h.device))).expand(b, n)   # Rabi amplitude noise per shot
+                g = rz_phases(det[:, l, :]).unsqueeze(-1) * rx_gate(om)
+                state = apply_layer_1q(state, g, n)
+            else:
+                gx = rx_gate(self.omega[l].expand(1))[0]
+                for k in range(n):
+                    dphase = rz_phases(det[:, l, k]).unsqueeze(-1)
+                    state = apply_1q(state, dphase * gx.unsqueeze(0), k, n)
             state = state * torch.exp(-1j * self.tau[l].to(torch.complex64) * eng)
         return self.readout(state.abs().square(), h)                # (B, n)
 

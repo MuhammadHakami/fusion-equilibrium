@@ -126,6 +126,9 @@ def heads_gpu(d, rows, stems):
         dd = with_hfull(dd, "qphys2" if ck.get("qphys") == 2 else "qphys") if ck.get("qphys") else dd   # §42a / §42e
         dd = with_hfull(dd, "vac") if ck.get("vac") else dd                         # §45j
         dd = with_hfull(dd, "subf") if ck.get("subf") else dd                       # §45m
+        if "qf" in ck:                                       # §47: QUOTA-Fusion VisionHOPE head (crop tiles over each shot)
+            import quota_fusion as QFH
+            out.append(QFH.predict_rows(ck, dd, d, rows)); continue
         if "arch" in ck:                                     # §38ac: quantum-classical PI-KAN head (hpo_qpikan.py --final)
             import hpo_qpikan as HQ
             net = HQ.build(ck["arch"], len(ck["mu"]), len(ck["ymu"]))
