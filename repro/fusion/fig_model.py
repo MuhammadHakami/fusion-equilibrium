@@ -288,7 +288,7 @@ def main() -> None:
     # ======================= row 1: backbone
     band(ax, 21.4, 99.5, 79.3, f"Backbone: VisionHOPE-T over the whole shot  ({s['params']} M parameters with neck and head)", C_VH, h=1.7, fs=5.0)
     by, yc = 76.3, 70.0
-    band(ax, 21.4, 29.3, by, "embedding", GREY); band(ax, 30.0, 52.3, by, f"VisionHOPE-T x {s['blocks']}", C_VH)
+    band(ax, 21.4, 29.3, by, "embedding", GREY); band(ax, 30.0, 52.3, by, f"VisionHOPE-T x {s['blocks']} (SRNL blocks)", C_VH)
     band(ax, 53.0, 62.4, by, "read-out", NAVY)
     arrow(ax, (19.6, yc), (22.4, yc)); lab(ax, 21.0, yc + 0.5, "$X$", fs=4.0, va="bottom")
     mlp(ax, 22.6, yc - 3.4, 6.0, 5.8, [s["fin"] + s["extra"], T], fc="#b0b0b0")
@@ -298,7 +298,7 @@ def main() -> None:
     for k, (x0, nxt) in enumerate(((e0[0], 39.1), (e1[0], 48.1))):        # the two VisionHOPE-T blocks (detail: the framed inset)
         bx = x0 + 0.5
         ax.add_patch(FancyBboxPatch((bx, yc - 1.2), 3.6, 2.4, boxstyle="round,pad=0.05,rounding_size=0.4", fc=C_VH, ec="none"))
-        ax.text(bx + 1.8, yc, f"block {k + 1}", ha="center", va="center", fontsize=3.6, color="white", weight="bold")
+        ax.text(bx + 1.8, yc, f"SRNL\nblock {k + 1}", ha="center", va="center", fontsize=3.4, color="white", weight="bold", linespacing=1.05)
         arrow(ax, (x0 + 0.05, yc), (bx, yc)); arrow(ax, (bx + 3.65, yc), (nxt, yc))
         ax.plot([bx + 1.8, bx + 1.8], [yc + 1.25, 75.6], color=C_VH, lw=0.5, ls=(0, (2, 1)))
     ax.plot([e0[0] + 2.3, 64.0], [75.6, 75.6], color=C_VH, lw=0.5, ls=(0, (2, 1)))
@@ -311,24 +311,28 @@ def main() -> None:
     arrow(ax, (60.4, yc), (60.9, yc))
     # inset: one VisionHOPE-T block
     band(ax, 64.0, 99.5, by, "VisionHOPE-T block (detail of blocks 1 and 2)", C_VH)
-    ox, ty = -2.2, yc
-    kernel(ax, 68.0 + ox, ty - 1.2, 3, 2.4); lab(ax, 69.2 + ox, ty - 1.5, "pos. conv\n3x3", fs=3.6)
-    node(ax, 72.4 + ox, ty, "LN", r=0.8, fs=3.5)
-    scans(ax, 74.2 + ox, ty + 0.6, 3.4); lab(ax, 75.9 + ox, ty + 4.2, "SRNL (self-referential nested learning)", fs=3.6, va="bottom", color="#1f6f78")
-    kernel(ax, 74.7 + ox, ty - 4.4, 7, 2.4, fc="#b9dfe2"); node(ax, 78.6 + ox, ty - 3.2, "$\\sigma$", r=0.7, fs=4.0)
-    lab(ax, 75.9 + ox, ty - 4.7, "gated 7x7", fs=3.6)
-    node(ax, 81.2 + ox, ty, "+", r=0.7)
-    kernel(ax, 82.6 + ox, ty - 1.1, 5, 2.2); lab(ax, 83.7 + ox, ty - 1.4, "pos. conv\n5x5", fs=3.6)
-    node(ax, 86.4 + ox, ty, "+", r=0.7); node(ax, 88.3 + ox, ty, "LN", r=0.8, fs=3.5)
-    mlp(ax, 89.4 + ox, ty - 3.4, 9.0, 5.8, [s["c"], s["ffn"], s["c"]], fc="#7bbac1"); lab(ax, 93.9 + ox, ty - 3.7, "MLP (GRN)", fs=3.6)
+    ty = yc
+    arrow(ax, (64.2, ty), (65.1, ty), lw=0.4)
+    kernel(ax, 65.2, ty - 1.2, 3, 2.4); lab(ax, 66.4, ty - 1.5, "pos. conv\n3x3", fs=3.5)
+    node(ax, 69.2, ty, "LN", r=0.8, fs=3.5)
+    ax.add_patch(FancyBboxPatch((70.8, ty + 0.7), 8.2, 4.3, boxstyle="round,pad=0.1,rounding_size=0.4", fc="#e3f1f2", ec=C_VH, lw=0.8))
+    scans(ax, 71.2, ty + 1.15, 3.3)
+    ax.text(76.9, ty + 3.6, "SRNL", ha="center", va="center", fontsize=5.0, color=C_VH, weight="bold")
+    ax.text(76.9, ty + 2.0, "5 memories", ha="center", va="center", fontsize=3.2, color="0.25")
+    kernel(ax, 71.6, ty - 4.4, 7, 2.4, fc="#b9dfe2"); node(ax, 75.3, ty - 3.2, "$\\sigma$", r=0.7, fs=4.0)
+    lab(ax, 72.8, ty - 4.7, "gated 7x7", fs=3.5)
+    node(ax, 80.6, ty, "+", r=0.75)
+    arrow(ax, (79.15, ty + 2.6), (80.2, ty + 0.65), lw=0.8, color=C_VH)
+    kernel(ax, 82.0, ty - 1.1, 5, 2.2); lab(ax, 83.1, ty - 1.4, "pos. conv\n5x5", fs=3.5)
+    node(ax, 85.6, ty, "+", r=0.7); node(ax, 87.4, ty, "LN", r=0.8, fs=3.5)
+    mlp(ax, 88.4, ty - 3.4, 8.4, 5.8, [s["c"], s["ffn"], s["c"]], fc="#7bbac1"); lab(ax, 92.6, ty - 3.7, "MLP (GRN)", fs=3.5)
     node(ax, 99.0, ty, "+", r=0.6)
-    for a_, b_ in (((70.45, ty), (71.55, ty)), ((73.2, ty + 0.3), (74.1, ty + 1.6)), ((73.0, ty - 0.5), (74.6, ty - 2.6)), ((77.15, ty - 3.2), (77.85, ty - 3.2)),
-                   ((77.65, ty + 1.4), (80.6, ty + 0.4)), ((79.3, ty - 2.9), (80.65, ty - 0.45)), ((81.9, ty), (82.5, ty)), ((84.85, ty), (85.65, ty)),
-                   ((87.1, ty), (87.45, ty))):
-        arrow(ax, (a_[0] + ox, a_[1]), (b_[0] + ox, b_[1]), lw=0.4)
-    arrow(ax, (96.4, ty + 0.1), (98.35, ty), lw=0.4)
-    ax.plot([67.8 + ox, 67.8 + ox, 86.4 + ox, 86.4 + ox], [ty - 1.3, ty - 5.9, ty - 5.9, ty - 0.75], color="0.5", lw=0.35, ls=(0, (2, 1)))
-    ax.plot([87.6 + ox, 87.6 + ox, 99.0, 99.0], [ty - 0.5, ty - 5.9, ty - 5.9, ty - 0.6], color="0.5", lw=0.35, ls=(0, (2, 1)))
+    for a_, b_ in (((67.65, ty), (68.35, ty)), ((69.95, ty + 0.35), (70.75, ty + 1.3)), ((69.8, ty - 0.55), (71.5, ty - 2.5)),
+                   ((74.05, ty - 3.2), (74.55, ty - 3.2)), ((76.0, ty - 2.9), (80.0, ty - 0.45)), ((81.4, ty), (81.9, ty)),
+                   ((84.25, ty), (84.85, ty)), ((86.3, ty), (86.55, ty)), ((96.5, ty + 0.1), (98.35, ty))):
+        arrow(ax, a_, b_, lw=0.4)
+    ax.plot([64.6, 64.6, 85.6, 85.6], [ty, ty - 5.9, ty - 5.9, ty - 0.7], color="0.5", lw=0.35, ls=(0, (2, 1)))
+    ax.plot([86.6, 86.6, 99.0, 99.0], [ty - 0.5, ty - 5.9, ty - 5.9, ty - 0.6], color="0.5", lw=0.35, ls=(0, (2, 1)))
 
     # ======================= row 2: neck + head
     band(ax, 21.4, 46.6, 60.6, "Neck", C_GATE, h=1.7, fs=5.0); band(ax, 47.3, 99.5, 60.6, "Head: input-dependent Rydberg register + linear read-out", C_QPU, h=1.7, fs=5.0)
