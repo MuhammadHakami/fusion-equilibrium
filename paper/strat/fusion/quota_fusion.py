@@ -277,13 +277,13 @@ def train_seq(p, d, sota, c, fm, edge, tr, Ytr, ev_rows, epochs, seed, sw=9.1428
     """§47 V arms: whole-shot batches (one backbone pass per shot), the same targets / weights / loss as train_eval."""
     import hpo_qpikan as H
     torch.manual_seed(seed); rng = np.random.default_rng(seed)
-    S = (QbSetup(d, sota, c, fm, edge, tr, Ytr) if Ytr.shape[1] == 2 else H.Setup(d, sota, c, fm, edge, tr, Ytr, None, None)); del S.X
+    S = _setup(p, d, sota, c, fm, edge, tr, Ytr); del S.X
     torch.cuda.empty_cache()
     Sh = Shots(d, fm, edge, np.unique(np.r_[d.shot[tr], d.shot[ev_rows]]), S.mu, S.sd); pt = torch.tensor(Sh.pos[tr], device="cuda")
     Y = torch.zeros(Sh.N + 1, S.Y.shape[1], device="cuda"); M = torch.zeros_like(Y); Wt = torch.zeros(Sh.N + 1, device="cuda")
     Y[pt], M[pt], Wt[pt] = S.Y, S.M, S.W; del S.Y, S.M, S.W
     trs = np.nonzero(np.isin(Sh.sid, np.unique(d.shot[tr])))[0]; evs = np.nonzero(np.isin(Sh.sid, np.unique(d.shot[ev_rows])))[0]
-    net = QuotaFusion(Sh.X.shape[1], Y.shape[1], p).cuda(); OW = torch.ones(Y.shape[1], device="cuda"); OW[:7] = sw
+    OW = _ow(p, S, sw, Y.shape[1]); net = QuotaFusion(Sh.X.shape[1], Y.shape[1], p).cuda()
     warm_start(net, p, p.get("_fold"), log)
     if int(p.get("jepa", 0)) > 0:                                             # §47b: JEPA pretraining of the VisionHOPE encoder (inputs only)
         from vhope_jepa import pretrain
@@ -353,13 +353,13 @@ class Windows:
 def train_eval(p, d, sota, c, fm, edge, tr, Ytr, ev_rows, epochs, seed, batch=4096, sw=9.142857, clip=1.0, log=""):
     import hpo_qpikan as H
     torch.manual_seed(seed); np.random.seed(seed)
-    S = (QbSetup(d, sota, c, fm, edge, tr, Ytr) if Ytr.shape[1] == 2 else H.Setup(d, sota, c, fm, edge, tr, Ytr, None, None))   # as the deployed heads
+    S = _setup(p, d, sota, c, fm, edge, tr, Ytr)                              # as the deployed heads (§48h: psi coefficients)
     shots = np.unique(np.r_[d.shot[tr], d.shot[ev_rows]]); Wn = Windows(d, fm, edge, shots, S.mu, S.sd, p["win"], p["stride"])
     torch.cuda.empty_cache()
     if S.X is not None:
         del S.X
     trg = torch.tensor(tr, device="cuda"); net = QuotaFusion(Wn.X.shape[1], S.Y.shape[1], p).cuda(); warm_start(net, p, p.get("_fold"), log)
-    OW = torch.ones(S.Y.shape[1], device="cuda"); OW[:7] = sw
+    OW = _ow(p, S, sw, S.Y.shape[1])
     steps = max(1, epochs * (len(tr) // batch)); rest = [q for n_, q in net.named_parameters() if n_ != "alpha"]
     opt = torch.optim.AdamW([{"params": rest}, {"params": [net.alpha], "weight_decay": 0.0}], lr=p["lr"], weight_decay=1e-4)
     sch = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=p["lr"], total_steps=steps, pct_start=0.05); t0 = time.time()
@@ -415,6 +415,37 @@ class QbSetup:
         pos = d.edge_feats()[rows, 1]; W = 1 + c.get("edge_w", 0.0) * ((pos < 0.1) | (pos > 0.9)); self.W = T(W / W.mean()); self.X = None
 
 
+class PsiSetup(QbSetup):
+    """§48h: the 64 psi PCA coefficients (orthonormal basis: coefficient SSE = pixel SSE). One global scale for every coefficient and the
+    PSI-F component weights (sigma_k / sigma_0)^-gamma, gamma 0.3152 as sota_train (applied through OW)."""
+
+    def __init__(self, d, sota, c, fm, edge, rows, Y):
+        super().__init__(d, sota, c, fm, edge, rows, Y)
+        T = lambda z: torch.tensor(np.asarray(z), dtype=torch.float32, device="cuda")  # noqa: E731
+        var = np.nanvar(Y, 0); self.ysd = np.full(Y.shape[1], np.sqrt(var.mean())); Yn = (Y - self.ymu) / self.ysd
+        self.M = T(np.isfinite(Yn)); self.Y = T(np.nan_to_num(Yn))
+        cw = np.sqrt(var / var[0]) ** -0.3152355297039971; self.cw = cw / cw.mean()
+
+
+def _setup(p, d, sota, c, fm, edge, tr, Ytr):
+    import hpo_qpikan as H
+    if p.get("target") == "psi":
+        return PsiSetup(d, sota, c, fm, edge, tr, Ytr)
+    if p.get("target") == "xp":                                               # §48j: the 4 X-point coordinates (NaN where absent)
+        return QbSetup(d, sota, c, fm, edge, tr, Ytr)
+    return QbSetup(d, sota, c, fm, edge, tr, Ytr) if Ytr.shape[1] == 2 else H.Setup(d, sota, c, fm, edge, tr, Ytr, None, None)
+
+
+def _ow(p, S, sw, n):
+    """Per-output loss weights for n outputs (train_seq has already moved S.Y to the GPU and deleted it)."""
+    if p.get("target") == "psi":
+        return torch.tensor(S.cw, dtype=torch.float32, device="cuda")
+    if p.get("target") == "xp":
+        return torch.ones(n, device="cuda")
+    OW = torch.ones(n, device="cuda"); OW[:7] = sw
+    return OW
+
+
 def r2_each(Y, P):
     out = []
     for k in range(min(7, Y.shape[1])):
@@ -436,6 +467,10 @@ def main() -> None:
         held = HB.cv_shots(d, tr, Ytr, k, K); hm = np.isin(d.shot[tr], held)    # folds from the shape labels (identical for q / b)
         if p.get("target") == "qb":                                           # §47d: q95 / betaN of the same shots and frames
             Ytr = d.S[tr][:, [sota.LABELS.index("efit_q95"), sota.LABELS.index("efit_beta_n")]].astype(np.float64)
+        elif p.get("target") == "psi":                                        # §48h: the 64 psi PCA coefficients of the same frames
+            Ytr = np.asarray(d.C[tr][:, :64], np.float64)
+        elif p.get("target") == "xp":                                         # §48j: X-point coordinates R_l, Z_l, R_u, Z_u (xp_labels.npz)
+            Ytr = np.load(fx.OUT / "xp_labels.npz")["y"][tr].astype(np.float64)
         ep = int(p.get("epochs", os.environ.get("QF_EPOCHS", "20")))          # per-arm override (warm arms: a few epochs)
         fit = train_seq if p.get("seq") else train_eval                     # seq: whole-shot batches (V arms)
         p = {**p, "_fold": k}
@@ -443,7 +478,11 @@ def main() -> None:
         each = r2_each(Ytr[hm], P); OUT.mkdir(exist_ok=True)
         np.savez(OUT / f"{arm}_f{k}.npz", rows=tr[hm], pred=P.astype(np.float32), y=Ytr[hm].astype(np.float32))
         torch.save({"net": net.state_dict(), "qf": p}, OUT / f"{arm}_f{k}.pt")      # warm-start source for later arms
-        print(f"QF_CV {arm} fold {k}/{K} mean7 {np.mean(each):.5f} | " + " ".join(f"{v:.4f}" for v in each) + f" | alpha {net.alpha.item():+.4f}", flush=True)
+        yh = Ytr[hm]; px = (f" psiR2 {1 - np.sum((yh - P) ** 2) / np.sum((yh - yh.mean(0)) ** 2):.6f} sse {np.sum((yh - P) ** 2):.6e}"
+                            if p.get("target") == "psi" else "")              # §48h: pixel-equivalent (orthonormal basis) R2 + SSE
+        if p.get("target") == "xp":                                           # §48j: standardised SSE over the finite X-point labels
+            m_ = np.isfinite(yh); px = " nsse " + f"{sum(np.sum((yh[m_[:, k], k] - P[m_[:, k], k]) ** 2) / np.var(yh[m_[:, k], k]) for k in range(yh.shape[1])):.6e}"
+        print(f"QF_CV {arm} fold {k}/{K} mean7 {np.mean(each):.5f} | " + " ".join(f"{v:.4f}" for v in each) + f" | alpha {net.alpha.item():+.4f}{px}", flush=True)
 
 
 def final(arm, p, d, sota, c, fm, edge, lab, epochs, seed):
@@ -451,6 +490,8 @@ def final(arm, p, d, sota, c, fm, edge, lab, epochs, seed):
     tr, Ytr = lab["rows_train"], lab["y_train"].astype(np.float64); allf = os.environ.get("STRAT_ALL", "") == "1"
     if allf:
         vt = np.load(fx.OUT / "boundary_labels_v8_vt.npz"); tr, Ytr = np.concatenate([tr, vt["rows"]]), np.concatenate([Ytr, vt["y"].astype(np.float64)])
+    if p.get("target") == "psi":                                              # §48h: the 64 psi PCA coefficients of the same frames
+        Ytr = np.asarray(d.C[np.sort(tr)][:, :64], np.float64)[np.argsort(np.argsort(tr))]
     va = lab["rows_valid"]
     net, S, P = train_seq(p, d, sota, c, fm, edge, tr, Ytr, va, epochs, seed, log=f" {arm} final s{seed}")
     stem = f"head_boundary_v8_{arm}_s{seed}"; np.savez(fx.OUT / f"{stem}.npz", rows_valid=va, pred_valid=P.astype(np.float32))

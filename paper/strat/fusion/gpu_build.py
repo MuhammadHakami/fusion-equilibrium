@@ -42,6 +42,12 @@ PSI["psiOOF"] = [f"PSIO_k{k}.pt" for k in range(5)]                             
 PSI["psiPQ2A"] = ["PQ2A_s2.pt", "PQ2A_s1.pt", "PQ2A_s3.pt"]                                   # §42h: psiFA + qphys2
 PSI["PQmix"] = ["PQ2.pt", "LS_ctrl.pt"]                                                  # §42m: recipe mix (VT analogue of PQ2A + psiFA)
 PSI["psiMixA"] = ["PQ2A_s2.pt", "PQ2A_s1.pt", "PQ2A_s3.pt", "PSIFA_s2.pt", "PSIFA_s1.pt", "PSIFA_s3.pt"]   # §42m production mix
+PSI["PQmixV"] = ["PQ2.pt", "LS_ctrl.pt", "qf:head_boundary_v8_PSIV60_s1", "qf:head_boundary_v8_PSIV60_s2"]     # §48h: + temporal psi (TRAIN only)
+PSI["psiMixAV"] = PSI["psiMixA"] + ["qf:head_boundary_v8_PSIV60A_s1"] * 3 + ["qf:head_boundary_v8_PSIV60A_s2"] * 3   # §48h: 6 trunks : PSIV60A 0.5 : 0.5
+PSI["PQmixV32"] = ["PQ2.pt", "LS_ctrl.pt", "qf:head_boundary_v8_PSIV60_s1@32", "qf:head_boundary_v8_PSIV60_s2@32"]   # §48h f20Pc: temporal comps 0-31 only
+PSI["PQmixV32h"] = ["PQ2.pt", "LS_ctrl.pt"] + ["qf:head_boundary_v8_PSIV60_s1@32"] * 3 + ["qf:head_boundary_v8_PSIV60_s2@32"] * 3   # §48i: share 0.75
+PSI["psiMixAV32h"] = PSI["psiMixA"] + ["qf:head_boundary_v8_PSIV60A_s1@32"] * 9 + ["qf:head_boundary_v8_PSIV60A_s2@32"] * 9   # §48i production (0.75)
+PSI["psiMixAV32"] = PSI["psiMixA"] + ["qf:head_boundary_v8_PSIV60A_s1@32"] * 3 + ["qf:head_boundary_v8_PSIV60A_s2@32"] * 3   # §48h F20K (f20Pc)
 for _t in ("LS_ctrl", "LS_w3", "LS_w30", "K128", "K256", "PQ2", "PQL10", "PQ2s2", "PQ2s3", "PQ2H"):                               # §42b level-set / §42c k trunks (single seed)
     PSI[_t] = [f"{_t}.pt"]
 IPFIX_PREFIX = ("IPF_", "QFI_")              # sota trunks trained with QW_MAGFIX=X_ipfix (heads record it as ck["magfix_name"])
@@ -164,8 +170,19 @@ def predict(d, shots, a, sota, ES, arms=None, sink=None, psi_sets=None):
     ent = [ES.member(str(fx.TRUNKS / m), d, shots) for m in sel["members"]]
 
     def members(paths):                                     # each trunk reads the inputs it was trained on
-        out = []
+        out, qc = [], {}
         for p in paths:
+            if p.startswith("qf:"):                         # §48h: a QUOTA-Fusion psi-coefficient head (stem in runs/strat/fusion);
+                if p not in qc:                             # repeated entries (member weights) are computed once; "stem@k": the head
+                    st_, _, kc = p[3:].partition("@")       # supplies components < k only (NaN above: the set's other members decide)
+                    rr = [np.nonzero(d.shot == s)[0] for s in shots]; P = heads_gpu(d, np.concatenate(rr), st_); o, i0 = {}, 0
+                    for s, r_ in zip(shots, rr):
+                        pad = np.zeros((len(r_), ES.KMAX)); pad[:, :P.shape[1]] = P[i0:i0 + len(r_)]
+                        if kc:
+                            pad[:, int(kc):] = np.nan
+                        o[s] = (pad, None); i0 += len(r_)
+                    qc[p] = o
+                out.append(qc[p]); continue
             if (SOTA / p).exists():
                 cf = torch.load(SOTA / p, map_location="cpu", weights_only=False)["cfg"]
                 dd = fixed(d, mf_name(p, {})) if cf.get("inputs") == "magfix" else d
@@ -214,7 +231,7 @@ def predict(d, shots, a, sota, ES, arms=None, sink=None, psi_sets=None):
                "head": ph[:, :2].cpu().numpy()}[a.axis]                              # §38aa: head = the J1 heads' axis
         ax = torch.tensor(axv, device="cuda", dtype=torch.float64)
         for ps_, psim in psims.items():
-            pc = np.concatenate([np.mean([m[s][0] for m in psim], 0) for s, _ in group])
+            pc = np.concatenate([np.nanmean([m[s][0] for m in psim], 0) for s, _ in group])   # nanmean: "qf:stem@k" members (§48h)
             if shrink is not None and (ps_ is None or "s" in flags_(ps_)):
                 pc = pc.copy(); sl, mt, mp = shrink; pc[:, :64] = mt + sl * (pc[:, :64] - mp)
             psi = torch.tensor((pc @ comps + mean).reshape(-1, 65, 65), device="cuda")

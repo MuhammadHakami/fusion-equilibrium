@@ -1,6 +1,6 @@
 # Fusion Equilibrium Challenge — reproduction package (DIII-D, Challenge 1)
 
-MIT-licensed reproduction package (exact runtime inputs with sha256: MANIFEST_runtime.txt; weights: WEIGHTS.sha256 + fetch_weights.py). Four candidates, selected with `CAND`; **F18K is the Final configuration** (doc 35, 2026-10-18):
+MIT-licensed reproduction package (exact runtime inputs with sha256: MANIFEST_runtime.txt; weights: WEIGHTS.sha256 + fetch_weights.py). Six candidates, selected with `CAND`; **F20K is the Final configuration** (doc 35 §48h, 2026-10-19):
 - **F15K** (Development public S 0.995949, 2026-10-17): F14K with Huber-loss (delta 0.3) shape heads J1RLHA and q/b heads
   QHAR2Hu (doc 35 §45l). F14K = F8 (QHAR2 q/b heads) + three fast-path register shape heads J1QH (§43l) + a gradient-boosted li tree
   blended into the heads' li at w 0.2 (§45a) + a second kappa / li pass (kw2).
@@ -9,9 +9,15 @@ MIT-licensed reproduction package (exact runtime inputs with sha256: MANIFEST_ru
 - **F17K** (default `CAND`; adopted for the Final; decided on VALID+TEST and label-free evidence, doc 35 §45s / §45w; not uploaded in Development): F16K with the register heads J1QH and the X-point
   heads XPA replaced on every shot by their Ip-sign canonical twins J1QHCS s1-3 / XPACS s1-3 (same recipes + canonical current inputs;
   same training compute as F16K).
-- **F18K** (default `CAND`; the Final configuration, 2026-10-18): F17K + the VisionHOPE + input-dependent Rydberg-register shape heads
+- **F18K** (Development public S 0.996278, 2026-10-18): F17K + the VisionHOPE + input-dependent Rydberg-register shape heads
   V60 s1-2 on every shot (weight 6.75 each = 0.25 of the shape-head weight; doc 35 §47c / §47f). Paired gain over F17K on 150 held-out
   shots (TRAIN-only heads, deployed chain): S +0.000084, 95% CI [+0.000036, +0.000134]; +3.1 GB10-hours of training.
+- **F20K** (default `CAND`; the Final configuration, 2026-10-19): F18K without the PI-KAN register heads J1QPIpi (budget) and with
+  VisionHOPE **temporal psi** heads PSIV60A s1-2 (`quota_fusion.py`, target = the 64 psi PCA coefficients; the shape-head recipe found by
+  Optuna + held-out folds, doc 35 §48c) mixed 50 / 50 with the six MLP psi trunks on PCA components 0-31 (components 32-63: the MLP
+  trunks alone). Cross-validated psi error 0.48-0.52x a matched per-frame MLP. Paired gain over F18K on 150 held-out shots (TRAIN-only
+  models, deployed chain): S +0.000093, 95% CI [+0.000017, +0.000187] (psi R2 0.999863 -> 0.999905, D_LCFS -0.00015, consistency +0.00027).
+  (F19K - W60 shape heads in place of J1QPIpi - is in the scripts but was not adopted: +0.000014 [-0.000037, +0.000055].)
 It will be frozen at the Final-phase submission. Every number below is reproducible from the scripts named here.
 
 ## What the model is
@@ -22,8 +28,9 @@ from the challenge inputs only (coil currents, Ip, Thomson scattering):
 | Stage | Component | Algorithm | Trained on |
 |---|---|---|---|
 | psi | `PSIFA_s{2,1,3}` + `PQ2A_s{2,1,3}` (mean of 6) | MLP trunks (2048 x 2) on 64 PCA coefficients of psi, Ip-sign-canonical inputs; PQ2A add the `qphys_inputs.py` scalings and coil / \|Ip\| ratios; axis guard: frames whose O-point lies > 0.25 m from the head axis use the PSIFA mean | all 7,041 labelled shots |
+| psi (F20K) | `PSIV60A_s1, s2` | VisionHOPE temporal psi heads (`quota_fusion.py`, target psi: 4 VisionHOPE-T blocks over 16-frame crops of each shot, 12 tokens, zero-init gate into a 2048 x 4 MLP, 3 x 10-atom tethered register head; Huber loss with the PSI-F component weights) mixed 50 / 50 into PCA components 0-31 | all shots |
 | shape heads | `J1RLHA_s1..s8` (F16K: + `J1RLHACS_s1..s4` on reversed-Ip shots) | MLP (4096 x 4), Huber loss delta 0.3: 7 consistency scalars + 64 LCFS rays; corrected magnetics + fixed-coordinate Thomson + full-rate current history + physics scalings / coil-Ip ratios + Te^1.5 current-profile proxies (`liphys_feats.py`) | all shots |
-| register heads | `J1QPIpi_s1, s2` | PI-KAN head with a 30-atom Rydberg register layer (simulated; cascade link) and a volume physics term | TRAIN split |
+| register heads (not F20K) | `J1QPIpi_s1, s2` | PI-KAN head with a 30-atom Rydberg register layer (simulated; cascade link) and a volume physics term | TRAIN split |
 | register heads | `J1QH_s1..s3` | MLP (2048 x 4) with a 30-atom Rydberg register layer (simulated, layered fast path; independent link; no physics loss), J1RLA inputs | TRAIN split |
 | li tree | `gbdt_shape_li_all.cbm` | CatBoost 1.2.10 (GPU; depth 8, 3000 iterations, lr 0.08) on the J1RLA input set; blended into the shape heads' li at w 0.2 | every 3rd frame of all shots |
 | VisionHOPE + register heads (F18K) | `V60_s1, s2` | `quota_fusion.py` (QUOTA-Fusion): per shot a 2-D map rows = frames, columns = 8 learned tokens of 128 channels (Linear 601 -> 1024 on the frame's 599 inputs + time since shot start + valid flag); 2 VisionHOPE-T blocks (`baseline/VisionHOPE`, MIT: conditional positional conv, four-direction SRNL scans with five self-modifying memories, gated 7x7 depthwise local mixing, LePE, GRN feed-forward); the frame's row (1024) -> Linear -> c; zero-init gate h = z + tanh(G z) * c into the frame's MLP trunk z (2048 x 4, J1QHCS recipe); head = Linear(h) + Linear skip(x) + alpha * W <Z> of 3 x 10 Rydberg atoms (per-input detunings and drive gates, trained 2-D positions, 4 layers, exact statevector); 32-frame crops of 128 shots per step, 60 epochs; inference tiles each shot with 32-frame crops at stride 16 and averages overlaps; 42.6 M parameters | TRAIN split |
@@ -31,7 +38,7 @@ from the challenge inputs only (coil currents, Ip, Thomson scattering):
 | q95 / betaN | `QHAR2Hu_s1..s3` (80%; F16K: `QHAR2HuCS_s1..s2` on reversed-Ip shots) + NAS entry ensemble (20%) | MLP heads (Huber loss delta 0.3) on corrected magnetics + inputs-only physics scalings (log Bt/Ip, pressure moments, betaN / beta_p / Greenwald-like ratios) and the 19 coil currents / \|Ip\| (`qphys_inputs.py`); 7 NAS trunks (`ens_select_mlp.json`) | all shots |
 | post-processing | `gpu_build.py` | psi edits toward the heads: axis shift, boundary warp, continuous X-point placement (xhe), kappa warp, X-point warp, joint Gauss-Newton shape fit, li warp, second li pass; then `post_kw2.py`: second kappa pass + li x2; q95 / betaN clamped to the labelled range (`qb_clamp.json`: q95 = all-shot label min / max, betaN = label quantiles 1e-4 / 1 - 1e-4) | (no training) |
 
-Head ensemble weights: 24 J1RLHA : 4 J1QPIpi : 12 J1QH (F18K: + 13.5 V60, each seed 6.75, on every shot; each J1RLHA seed 3; F16K reversed-Ip shots: each J1RLHACS seed 6, each J1QPIpi 2, each J1QH 4; the VALID+TEST-validated
+Head ensemble weights: 24 J1RLHA : 4 J1QPIpi : 12 J1QH (F18K: + 13.5 V60, each seed 6.75, on every shot; F20K: as F18K without J1QPIpi; each J1RLHA seed 3; F16K reversed-Ip shots: each J1RLHACS seed 6, each J1QPIpi 2, each J1QH 4; the VALID+TEST-validated
 proportions 6 : 1 : 3 of doc 35 §43l, scaled to the seed counts); the li output is then blended with the li tree, 0.8 heads + 0.2 tree
 (5-fold shot cross-fitted weight on VALID+TEST, §45a). q/b blend weight 0.8 on the heads (VALID+TEST study, doc 35 §42a).
 
@@ -55,6 +62,8 @@ proportions 6 : 1 : 3 of doc 35 §43l, scaled to the seed counts); the li output
   kernels - so ~1.2x SLOWER on an A100. Component estimate: **F16K / F17K ~20, F15K ~19 A100-hours** (~4 h under 24). Not timed on an A100.
 - F18K adds the two V60 heads: 20.4 k steps each at 0.27 s / step alone on the GB10 (doc 35 §47) = ~1.5 h per seed, 3.1 GB10-hours, counted
   at 1.0x on an A100 (its SRNL scans and the simulated register do not get the MLPs' speed-up) -> **F18K ~23 A100-hours** (within 24).
+- F20K removes the two PI-KAN register heads (2 x 4.2 GB10-h, ~1.2x slower on an A100: ~10 A100-h) and adds the two PSIV60A psi heads
+  (22.8 k steps each; deeper VisionHOPE than V60, estimated ~3.2 h per seed alone on the GB10, counted at 1.0x) -> **F20K ~19 A100-hours**.
 
 ## Data provenance
 
@@ -80,14 +89,14 @@ STRAT_NANG=64 STRAT_LABEL_SUFFIX=_v8 .venv/bin/python paper/strat/fusion/boundar
 .venv/bin/python paper/strat/fusion/liphys_feats.py
 .venv/bin/python paper/strat/fusion/xp_labels.py                         # X-point labels (continuous saddle of the true psi)
 # 2 models: repro/fusion/train_all.sh (entry ensemble, psi trunks, shape / register / q-b heads; exact env per component)
-CAND=F18K repro/fusion/train_all.sh            # the Final; or CAND=F17K (no V60 heads), CAND=F16K (J1QH / XPA in place of the twins), CAND=F15K (no Ip-sign twins)
+CAND=F20K repro/fusion/train_all.sh            # the Final; or CAND=F18K (MLP psi only, + J1QPIpi), CAND=F17K (no V60 heads), CAND=F16K (J1QH / XPA in place of the twins), CAND=F15K (no Ip-sign twins)
 ```
 
 ## Regenerate the submitted predictions
 
 ```bash
 QW_FOLD=diii_d_private_test runs/final_fold.sh            # inputs-only feature blocks for the test fold
-QW_FOLD=diii_d_private_test CAND=F18K repro/fusion/infer.sh <tag>   # (or CAND=F17K / F16K / F15K) -> runs/sophelio_sota/submission_<tag>K/diii_d_private_test.npz
+QW_FOLD=diii_d_private_test CAND=F20K repro/fusion/infer.sh <tag>   # (or CAND=F18K / F17K / F16K / F15K) -> runs/sophelio_sota/submission_<tag>K/diii_d_private_test.npz
 ```
 
 Determinism: q95 / betaN reproduce to ~1e-6; psi to ~1e-3 absolute (GPU reduction order in the batched post-processing),

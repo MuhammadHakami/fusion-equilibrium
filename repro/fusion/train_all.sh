@@ -10,9 +10,9 @@
 # ~4.2 h each, the three J1QH heads 2.8 h together, li tree ~3 min, NAS entry ensemble ~2 h -> F15K ~22.2 GB10-hours, F16K ~25.4 (6 more
 # MLP heads). See README.md for the A100 conversion.
 set -e; cd "$(dirname "$0")/../.."; export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0} PYTHONUNBUFFERED=1; P=.venv/bin/python; F=paper/strat/fusion
-CAND=${CAND:-F18K}; case "$CAND" in F15K|F16K|F17K|F18K) ;; *) echo "CAND must be F15K, F16K, F17K or F18K"; exit 2;; esac
+CAND=${CAND:-F20K}; case "$CAND" in F15K|F16K|F17K|F18K|F19K|F20K) ;; *) echo "CAND must be F15K, F16K, F17K, F18K, F19K or F20K"; exit 2;; esac
 TW=0; [ "$CAND" = F15K ] || TW=1                                           # the Ip-sign canonical twins (F16K, F17K)
-CN=""; QT=J1QH; XT=_XPA; { [ "$CAND" = F17K ] || [ "$CAND" = F18K ]; } && { CN="STRAT_CANON=2"; QT=J1QHCS; XT=_XPACS; }   # F17K / F18K: canonical register / X-point heads
+CN=""; QT=J1QH; XT=_XPA; case "$CAND" in F17K|F18K|F19K|F20K) CN="STRAT_CANON=2"; QT=J1QHCS; XT=_XPACS;; esac   # F17K / F18K / F19K: canonical register / X-point heads
 # 1 NAS entry ensemble (7 members incl. the srr register model coupled_c13-mlp, + its stage-1 init trunk1_t5) on all labelled shots
 QW_ENTRY_CFGS=repro/fusion/entry_configs.json $P $F/entry_alldata.py      # configs as shipped (t19-ew2 members: clip 1.0)
 # 2 psi trunks (PSI-F config + Ip-sign canonical inputs + all data), seeds 2, 1, 3
@@ -26,9 +26,9 @@ J="STRAT_ALL=1 STRAT_SCAL_W=9.142857 STRAT_THZ=1 STRAT_HFULL=1 STRAT_QPHYS=2 STR
 for s in 1 2 3 4 5 6 7 8; do env $E $J STRAT_OUT_TAG=_J1RLHA $P $F/head_boundary.py $s; done
 # 4c (F16K, F17K) Ip-sign canonical twins J1RLHACS (= J1RLHA + STRAT_CANON=2: currents x sign(Ip) of the shot + the sign as an input), seeds 1-4
 [ "$TW" = 1 ] && for s in 1 2 3 4; do env $E $J STRAT_CANON=2 STRAT_OUT_TAG=_J1RLHACS $P $F/head_boundary.py $s; done
-# 5 register heads (PI-KAN + simulated 30-atom Rydberg layer, volume physics term), seeds 1-2
+# 5 register heads (PI-KAN + simulated 30-atom Rydberg layer, volume physics term), seeds 1-2 (not in F19K: W60 takes their budget)
 PK='{"block": "mlp", "width": 4096, "depth": 4, "drop": 0.1, "lr": 0.0025322139193052723, "w_pi": 0.1, "q_layers": 4, "q_in": 128, "link": "cascade", "alpha_mult": 1.0, "alpha_init": 0.1}'
-for s in 1 2; do $P $F/hpo_qpikan.py --fixed "$PK" --tag J1QPIpi --epochs 60 --seed $s; done
+[ "$CAND" = F19K ] || [ "$CAND" = F20K ] || for s in 1 2; do $P $F/hpo_qpikan.py --fixed "$PK" --tag J1QPIpi --epochs 60 --seed $s; done
 # 5b register heads J1QH (§43j trial 10: MLP 2048 x 4 + 30-atom Rydberg layer, independent link, no physics loss; fast layered register
 #    path QW_QFAST=1; J1RL inputs; TRAIN split; F17K: + STRAT_CANON=2 -> J1QHCS), seeds 1-3 - run concurrently on one GPU (2.8 h together on the GB10)
 QH='{"block": "mlp", "width": 2048, "depth": 4, "drop": 0.1, "q_layers": 4, "q_in": 64, "link": "independent", "lr": 0.0012505271791067153, "alpha_mult": 1.0, "alpha_init": 0.1, "w_pi": 0.0}'
@@ -48,6 +48,15 @@ $P $F/gbdt_shape.py dump && $PT $F/gbdt_shape.py litree
 #   128 shots per step; zero-init gate into the J1QHCS-recipe MLP trunk 2048 x 4; head = linear + skip + alpha x 3 x 10-atom register;
 #   TRAIN split, 60 epochs = 20.4 k steps, ~1.5 h per seed alone on the GB10; VisionHOPE CUDA kernels are JIT-built with ninja), seeds 1-2
 V='{"backbone": "vhope", "seq": true, "crop": 32, "shots": 128, "bb_width": 128, "bb_depth": 2, "tokens": 8}'
-[ "$CAND" = F18K ] && for s in 1 2; do env QW_QFAST=1 QW_MAGFIX=X_magfix STRAT_THZ=1 STRAT_HFULL=1 STRAT_LIPHYS=1 STRAT_QPHYS=2 STRAT_CANON=2 \
+{ [ "$CAND" = F18K ] || [ "$CAND" = F19K ] || [ "$CAND" = F20K ]; } && for s in 1 2; do env QW_QFAST=1 QW_MAGFIX=X_magfix STRAT_THZ=1 STRAT_HFULL=1 STRAT_LIPHYS=1 STRAT_QPHYS=2 STRAT_CANON=2 \
   $P $F/quota_fusion.py final V60 "$V" $s 60; done
+# 9b (F19K) the §48c search winner (Optuna + held-out folds, doc 35 §48c-d) W60: 4 VisionHOPE-T blocks, width 128, 12 tokens, 16-frame crops of
+#   256 shots per step, Huber 1.0 loss, tether3d (trained 3-D atom positions) register with 32 inputs; TRAIN split, 60 epochs = 20.4 k steps, seeds 1-2
+W='{"backbone": "vhope", "neck": "gate", "win": 8, "stride": 1, "bb_width": 128, "bb_depth": 4, "width": 2048, "depth": 4, "drop": 0.0, "q_layers": 4, "q_in": 32, "link": "independent", "lr": 0.000977105771213329, "alpha_init": 0.11830330369409621, "seq": true, "crop": 16, "shots": 256, "tokens": 12, "q_noise": 0.0, "in_noise": 0.0, "huber": 1.0, "mixer": 64, "reg": "tether3d"}'
+[ "$CAND" = F19K ] && for s in 1 2; do env QW_QFAST=1 QW_MAGFIX=X_magfix STRAT_THZ=1 STRAT_HFULL=1 STRAT_LIPHYS=1 STRAT_QPHYS=2 STRAT_CANON=2 \
+  $P $F/quota_fusion.py final W60 "$W" $s 60; done
+# 10 (F20K) temporal psi heads PSIV60A (doc 35 §48h): the W60 recipe on the 64 psi PCA coefficients (PSI-F component weights), all data, 60 epochs, seeds 1-2
+PV='{"target": "psi", "backbone": "vhope", "neck": "gate", "win": 8, "stride": 1, "bb_width": 128, "bb_depth": 4, "width": 2048, "depth": 4, "drop": 0.0, "q_layers": 4, "q_in": 32, "link": "independent", "lr": 0.000977105771213329, "alpha_init": 0.11830330369409621, "seq": true, "crop": 16, "shots": 256, "tokens": 12, "q_noise": 0.0, "in_noise": 0.0, "huber": 1.0, "mixer": 64, "reg": "tether3d"}'
+[ "$CAND" = F20K ] && for s in 1 2; do env QW_QFAST=1 QW_MAGFIX=X_magfix STRAT_ALL=1 STRAT_THZ=1 STRAT_HFULL=1 STRAT_LIPHYS=1 STRAT_QPHYS=2 STRAT_CANON=2 \
+  $P $F/quota_fusion.py final PSIV60A "$PV" $s 60; done
 echo "TRAIN_ALL_DONE $CAND $(date -Is)"

@@ -9,10 +9,15 @@ Every size printed on the figure is read from the trained PyTorch checkpoints wh
 runs/sophelio_sota/*.pt), and the script stops if a drawn number disagrees with a tensor shape:
 
     .venv/bin/python repro/fusion/fig_model.py            -> repro/fusion/model.png (+ model.pdf)
+    FIG_CAND=F19K ...                                     -> the F19K entry: rows A-B draw W60 (the §48c search winner: 4 VisionHOPE-T
+                                                             blocks, 12 tokens, tethered 3-D Rydberg registers); the ensemble lists V60 + W60
+    FIG_CAND=F20K ...                                     -> the F20K entry (§48h): rows A-B as F18K (V60); the psi reconstruction adds the
+                                                             VisionHOPE temporal psi networks (components 0-31, 50 %); J1QPIpi removed
 """
 from __future__ import annotations
 
 import math
+import os
 import pathlib
 
 import matplotlib
@@ -22,7 +27,8 @@ import numpy as np  # noqa: E402
 from matplotlib.patches import Arc, Circle, FancyArrowPatch, FancyBboxPatch, Polygon, Rectangle  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-OUT = ROOT / "repro/fusion/model.png"
+OUT = pathlib.Path(os.environ.get("FIG_OUT", ROOT / "repro/fusion/model.png"))
+CAND = os.environ.get("FIG_CAND", "F18K")
 NAVY, RUST, TEAL, PLUM, GREY = "#1f4e79", "#a0522d", "#2e7d5b", "#5b4a8a", "#555555"
 C_IN, C_VH, C_TR, C_GATE, C_QPU, C_QPU2, C_HEAD, C_ENS, C_PSI = "#4a7fb5", "#3f8f9a", "#8c8c8c", "#7a5aa8", "#b5541f", "#d0803f", "#2e7d5b", "#1f4e79", "#5b4a8a"
 BLUE, DBLUE, ORANGE, GREEN, PURPLE = "#dbe8f5", "#9ec1e3", "#fbe3cf", "#d9efe6", "#e6e1f2"
@@ -31,28 +37,44 @@ C_GATE2, C_OUT = "#8a7fbf", "#555555"
 # drawn sizes (checked against the checkpoints in sizes())
 S = dict(fin=599, extra=2, tokens=8, c=128, blocks=2, heads=8, hd=16, ffn=512, width=2048, depth=4, out=71, q_in=64, regs=3, atoms=10,
          layers=4, params=42.6, base=427, psi_k=64, psi_w=2048, psi_d=2, xp_out=4, qb_in=456)
+if CAND == "F19K":                                                          # W60 (doc 35 §48c-d) is drawn in rows A-B
+    S.update(tokens=12, blocks=4, heads=4, q_in=32, params=44.1)
 
 
 def sizes() -> dict:
     """Read the V60 / psi / head checkpoints and assert every drawn number; returns the sizes used for the labels."""
     import torch
     s, chk = dict(S), []
-    p = ROOT / "runs/strat/fusion/head_boundary_v8_V60_s1.pt"
+    main_stem = "W60" if CAND == "F19K" else "V60"
+    if CAND == "F19K" and (ROOT / "runs/strat/fusion/head_boundary_v8_V60_s1.pt").exists():
+        chk.append("V60 (in the ensemble)")
+    p = ROOT / f"runs/strat/fusion/head_boundary_v8_{main_stem}_s1.pt"
     if p.exists():
         ck = torch.load(p, map_location="cpu", weights_only=False); sd, qf = ck["net"], ck["qf"]
-        nb = len({k.split(".")[2] for k in sd if k.startswith("bb.blocks.")})
+        nb = len({k.split(".")[2] for k in sd if k.startswith("bb.blocks.")}); t3 = "reg.regs.0.pos0" in sd   # tether3d register (W60)
         got = dict(fin=len(ck["mu"]), out=len(ck["ymu"]), tokens=qf["tokens"], c=qf["bb_width"], blocks=nb, width=sd["proj.weight"].shape[0],
                    depth=len({k.split(".")[1] for k in sd if k.startswith("blocks.")}), q_in=sd["q_in.weight"].shape[0],
-                   regs=len({k.split(".")[2] for k in sd if k.startswith("reg.regs.")}), atoms=sd["reg.regs.0.pos"].shape[0],
-                   layers=sd["reg.regs.0.base"].shape[0], ffn=sd["bb.blocks.0.ffn.fc1.weight"].shape[0],
+                   regs=len({k.split(".")[2] for k in sd if k.startswith("reg.regs.")}),
+                   atoms=sd["reg.regs.0.pos0" if t3 else "reg.regs.0.pos"].shape[0],
+                   layers=sd["reg.regs.0.base_ang" if t3 else "reg.regs.0.base"].shape[0], ffn=sd["bb.blocks.0.ffn.fc1.weight"].shape[0],
                    heads=sd["bb.blocks.0.operator.d_skip"].shape[0], hd=sd["bb.blocks.0.operator.d_skip"].shape[1],
-                   params=round(sum(v.numel() for k, v in sd.items() if not k.endswith(("zdiag", "cz_mask", "bitsf"))) / 1e6, 1))
+                   params=round(sum(v.numel() for k, v in sd.items() if not k.endswith(("zdiag", "cz_mask", "bitsf", "pairbits", ".iu"))) / 1e6, 1))
         assert sd["bb.tok.weight"].shape == (got["tokens"] * got["c"], got["fin"] + S["extra"]), sd["bb.tok.weight"].shape
         assert sd["skip.weight"].shape == (got["out"], got["fin"]) and sd["q_out.weight"].shape == (got["out"], got["regs"] * got["atoms"])
-        assert sd["reg.regs.0.cond.weight"].shape == (got["layers"] * got["atoms"] * 2, got["q_in"])
+        if t3:                                                              # detunings only (no drive gates), 3-D positions, tethers
+            assert sd["reg.regs.0.cond.weight"].shape == (got["layers"] * got["atoms"], got["q_in"])
+            assert sd["reg.regs.0.pos0"].shape[1] == 3 and sd["reg.regs.0.geo.2.weight"].shape[0] == got["atoms"] * 3
+            assert sd["reg.tether.weight"].shape == (got["regs"] - 1, got["q_in"])
+        else:
+            assert sd["reg.regs.0.cond.weight"].shape == (got["layers"] * got["atoms"] * 2, got["q_in"])
         assert sd["gate.weight"].shape == (got["width"], got["width"]) and sd["inp.0.weight"].shape == (got["width"], got["fin"])
-        chk.append(f"V60 ({got['params']} M parameters)")
+        chk.append(f"{main_stem} ({got['params']} M parameters)")
         s.update(got)
+    p = ROOT / "runs/strat/fusion/head_boundary_v8_PSIV60A_s1.pt"
+    if CAND == "F20K" and p.exists():                                        # §48h temporal psi networks: x_t (599) -> 64 PCA coefficients
+        ck = torch.load(p, map_location="cpu", weights_only=False)
+        assert len(ck["mu"]) == s["fin"] and len(ck["ymu"]) == 64 and ck["qf"].get("target") == "psi", (len(ck["mu"]), len(ck["ymu"]))
+        chk.append("PSIV60A")
     p = ROOT / "runs/sophelio_sota/PSIFA_s1.pt"
     if p.exists():
         ck = torch.load(p, map_location="cpu", weights_only=False); sd = next(ck[k] for k in ("net", "state", "model") if k in ck)
@@ -298,7 +320,8 @@ def main() -> None:
     for k, (x0, nxt) in enumerate(((e0[0], 39.1), (e1[0], 48.1))):        # the two VisionHOPE-T blocks (detail: the framed inset)
         bx = x0 + 0.5
         ax.add_patch(FancyBboxPatch((bx, yc - 1.2), 3.6, 2.4, boxstyle="round,pad=0.05,rounding_size=0.4", fc=C_VH, ec="none"))
-        ax.text(bx + 1.8, yc, f"SRNL\nblock {k + 1}", ha="center", va="center", fontsize=3.4, color="white", weight="bold", linespacing=1.05)
+        g = s["blocks"] // 2; nm = f"block {k + 1}" if g == 1 else f"{k * g + 1}-{k * g + g}"
+        ax.text(bx + 1.8, yc, f"SRNL\n{nm}", ha="center", va="center", fontsize=3.4, color="white", weight="bold", linespacing=1.05)
         arrow(ax, (x0 + 0.05, yc), (bx, yc)); arrow(ax, (bx + 3.65, yc), (nxt, yc))
         ax.plot([bx + 1.8, bx + 1.8], [yc + 1.25, 75.6], color=C_VH, lw=0.5, ls=(0, (2, 1)))
     ax.plot([e0[0] + 2.3, 64.0], [75.6, 75.6], color=C_VH, lw=0.5, ls=(0, (2, 1)))
@@ -310,7 +333,8 @@ def main() -> None:
     vec(ax, 61.0, yc - 3.4, 6.8, fc="#9ec1e3", w=0.7); lab(ax, 61.35, yc - 3.7, "$c$")
     arrow(ax, (60.4, yc), (60.9, yc))
     # inset: one VisionHOPE-T block
-    band(ax, 64.0, 99.5, by, "VisionHOPE-T block (detail of blocks 1 and 2)", C_VH)
+    band(ax, 64.0, 99.5, by, "VisionHOPE-T block (detail of blocks 1 and 2)" if s["blocks"] == 2 else
+         f"VisionHOPE-T block (detail of each of the {s['blocks']} blocks)", C_VH)
     ty = yc
     arrow(ax, (64.2, ty), (65.1, ty), lw=0.4)
     kernel(ax, 65.2, ty - 1.2, 3, 2.4); lab(ax, 66.4, ty - 1.5, "pos. conv\n3x3", fs=3.5)
@@ -338,7 +362,8 @@ def main() -> None:
     band(ax, 21.4, 46.6, 60.6, "Neck", C_GATE, h=1.7, fs=5.0); band(ax, 47.3, 99.5, 60.6, "Head: input-dependent Rydberg register + linear read-out", C_QPU, h=1.7, fs=5.0)
     by, yc = 57.6, 50.8
     band(ax, 21.4, 34.6, by, "frame encoder (MLP)", GREY); band(ax, 35.3, 46.6, by, "fusion gate", C_GATE2, ha="left")
-    band(ax, 47.3, 53.4, by, "encoding", C_QPU2); band(ax, 54.1, 74.3, by, f"Rydberg register {s['regs']} x {s['atoms']}", C_QPU)
+    band(ax, 47.3, 53.4, by, "encoding", C_QPU2); band(ax, 54.1, 74.3, by, f"Rydberg register {s['regs']} x {s['atoms']}" if CAND != "F19K" else
+                                                     f"3-D Rydberg registers {s['regs']} x {s['atoms']}", C_QPU)
     band(ax, 75.0, 87.4, by, "linear read-out", C_HEAD); band(ax, 88.1, 99.5, by, "shape output", C_OUT)
     arrow(ax, (17.0, yc), (21.6, yc)); lab(ax, 19.3, yc + 0.5, f"$x_t$: {s['fin']}", fs=3.7, va="bottom")
     mlp(ax, 21.6, yc - 3.6, 12.2, 6.6, [s["fin"], W, W, W], fc="#b0b0b0", labels=[str(s["fin"]), str(W), f"x{s['depth']}", str(W)])
@@ -371,7 +396,8 @@ def main() -> None:
     # ======================= row 3: ensemble and psi reconstruction
     band(ax, 0.5, 99.5, 38.4, "Ensemble and psi reconstruction", C_ENS, h=1.7, fs=5.0, ha="left")
     by, yc = 35.4, 27.4
-    band(ax, 0.8, 17.2, by, "psi networks (MLP) x 6", C_PSI); band(ax, 17.9, 29.0, by, "PCA basis", C_PSI)
+    band(ax, 0.8, 17.2, by, "psi networks (MLP) x 6", C_PSI)
+    band(ax, 17.9, 29.0, by, "PCA basis", C_PSI)
     band(ax, 29.7, 58.4, by, "shape networks", C_HEAD, ha="left"); band(ax, 59.1, 87.0, by, "psi correction to the predicted shape", GREY)
     band(ax, 87.7, 99.5, by, "output", C_OUT)
     lab(ax, 1.5, yc + 4.0, f"$x_t$: {s['base']}", fs=3.7, ha="left", va="bottom")
@@ -382,6 +408,10 @@ def main() -> None:
     modes(ax, 18.3, yc - 3.0, 7.6, 6.2); node(ax, 27.6, yc + 0.1, "$\\Sigma$")
     arrow(ax, (13.9, yc), (14.55, yc)); arrow(ax, (15.35, yc), (18.2, yc)); arrow(ax, (26.0, yc + 0.1), (26.7, yc + 0.1))
     gl = [("vh", "VisionHOPE + register x 2", "0.25"), ("mlp", "MLP x 12", "0.45"), ("reg", "MLP + register x 5", "0.30")]
+    if CAND == "F20K":                                                      # route weights 13.5 / 24 / 12 of 49.5 (J1QPIpi removed)
+        gl = [("vh", "VisionHOPE + register x 2", "0.27"), ("mlp", "MLP x 12", "0.48"), ("reg", "MLP + register x 3", "0.24")]
+    if CAND == "F19K":                                                      # route weights 13.5 + 13.5 / 24 / 12 of 63
+        gl = [("vh", "VisionHOPE + register x 4", "0.43"), ("mlp", "MLP x 12", "0.38"), ("reg", "MLP + register x 3", "0.19")]
     for i, (k, t_, w_) in enumerate(gl):
         gy = yc + 4.2 - i * 3.0; glyph(ax, 46.6, gy - 1.2, k, w=4.0, h=2.4)
         lab(ax, 30.4, gy, w_, fs=3.7, ha="left", va="center", color=C_HEAD); lab(ax, 33.2, gy, t_, fs=3.6, ha="left", va="center")
@@ -390,6 +420,10 @@ def main() -> None:
     arrow(ax, (48.6, 41.0), (48.6, yc + 5.45), color="0.45"); lab(ax, 49.1, 41.4, "$y$", fs=3.9, ha="left", va="bottom")
     node(ax, 54.4, yc + 1.4, "$\\Sigma$"); lab(ax, 54.4, yc + 0.3, f"{s['out']}", fs=3.6)
     glyph(ax, 30.6, yc - 8.2, "mlp", w=4.0, h=2.4); lab(ax, 32.6, yc - 8.5, f"q95, betaN\n$x_t$: {s['qb_in']}", fs=3.5)
+    if CAND == "F20K":                                                      # §48h: temporal psi networks (PSIV60A s1-2), components 0-31, 50 %
+        glyph(ax, 2.6, yc - 10.6, "vh", w=4.0, h=2.4)
+        lab(ax, 7.1, yc - 9.4, f"VisionHOPE psi networks x 2: whole shot, $x$: {s['fin']}\nPCA components 0-31 at 50 %", fs=3.4, ha="left", va="center")
+        arrow(ax, (4.6, yc - 8.15), (14.9, yc - 3.1), color="0.45")
     glyph(ax, 38.4, yc - 8.2, "mlp", w=4.0, h=2.4); lab(ax, 40.4, yc - 8.5, f"X-points\n$x_t$: {s['fin']}", fs=3.5)
     arrow(ax, (42.5, yc - 7.0), (73.0, yc - 0.2), style="angle,angleA=0,angleB=90,rad=0", color="0.45")
     ax.plot([30.5, 29.7, 29.7, 97.0], [yc - 7.0, yc - 7.0, yc - 11.2, yc - 11.2], color="0.45", lw=0.5)
@@ -406,12 +440,22 @@ def main() -> None:
 
     # ======================= row 4: loss and register mechanism
     band(ax, 0.5, 99.5, 10.6, "Loss and the input-dependent Rydberg register", PLUM, h=1.7, fs=5.0)
-    lab(ax, 24.0, 8.3, r"$\mathcal{L}=\frac{1}{\sum m_{ik}}\sum_{i} w_i \sum_{k=1}^{71}\lambda_k\, m_{ik}\,(\hat y_{ik}-y_{ik})^2,\quad \lambda_{\rm shape}=9.14,\ \lambda_{\rm ray}=1$", fs=4.5)
-    lab(ax, 24.0, 2.6, r"$S = 0.55\,R^2_{\psi} + 0.15\,R^2_{q_{95},\beta_N} + 0.10\,(1-D_{\rm LCFS}) + 0.20\,\overline{R^2}_{\rm shape}$", fs=4.4)
-    lab(ax, 74.0, 8.3, r"$u=\tanh(W_{\rm in}h),\quad \delta_{lk}(u)=b_{lk}+\pi\tanh(W u)_{lk},\quad g_k(u)=\sigma(W_g u)_k$", fs=4.4)
-    lab(ax, 74.0, 4.8, r"$|\psi(u)\rangle=\prod_{l=1}^{4}\left[e^{-i\tau_l V}\bigotimes_{k=1}^{10}R_z(\delta_{lk})\,R_x(\Omega_l\,g_k)\right]|0\rangle^{\otimes 10},"
-        r"\quad V=\sum_{i<j}\frac{C_6}{|\mathbf{r}_i-\mathbf{r}_j|^6}\,n_i n_j$", fs=4.4)
-    lab(ax, 74.0, 0.5, r"$y = W_o h + W_s x_t + \alpha\, W_q\,\langle Z\rangle,\qquad h = z+\tanh(Gz)\odot c$", fs=4.4)
+    if CAND != "F19K":
+        lab(ax, 24.0, 8.3, r"$\mathcal{L}=\frac{1}{\sum m_{ik}}\sum_{i} w_i \sum_{k=1}^{71}\lambda_k\, m_{ik}\,(\hat y_{ik}-y_{ik})^2,\quad \lambda_{\rm shape}=9.14,\ \lambda_{\rm ray}=1$", fs=4.5)
+    else:                                                                   # W60: Huber delta 1 on standardised targets (2 x F.huber_loss)
+        lab(ax, 24.0, 8.3, r"$\mathcal{L}=\frac{1}{\sum m_{ik}}\sum_{i} w_i \sum_{k=1}^{71}\lambda_k\, m_{ik}\,\rho(\hat y_{ik}-y_{ik}),\ \ \rho(r)=r^2\ (|r|\leq 1),\ 2|r|-1\ \rm{else},"
+            r"\ \ \lambda_{\rm shape}=9.14$", fs=4.2)
+    lab(ax, 24.0, 2.6 if CAND != "F19K" else 1.4, r"$S = 0.55\,R^2_{\psi} + 0.15\,R^2_{q_{95},\beta_N} + 0.10\,(1-D_{\rm LCFS}) + 0.20\,\overline{R^2}_{\rm shape}$", fs=4.4)
+    if CAND != "F19K":
+        lab(ax, 74.0, 8.3, r"$u=\tanh(W_{\rm in}h),\quad \delta_{lk}(u)=b_{lk}+\pi\tanh(W u)_{lk},\quad g_k(u)=\sigma(W_g u)_k$", fs=4.4)
+        lab(ax, 74.0, 4.8, r"$|\psi(u)\rangle=\prod_{l=1}^{4}\left[e^{-i\tau_l V}\bigotimes_{k=1}^{10}R_z(\delta_{lk})\,R_x(\Omega_l\,g_k)\right]|0\rangle^{\otimes 10},"
+            r"\quad V=\sum_{i<j}\frac{C_6}{|\mathbf{r}_i-\mathbf{r}_j|^6}\,n_i n_j$", fs=4.4)
+        lab(ax, 74.0, 0.5, r"$y = W_o h + W_s x_t + \alpha\, W_q\,\langle Z\rangle,\qquad h = z+\tanh(Gz)\odot c$", fs=4.4)
+    else:                                                                   # W60: tether3d (paper/qlayer.py TetheredGeometry3D)
+        lab(ax, 74.0, 8.3, r"$u_1=\tanh(W_{\rm in}h),\quad u_r=[u_1,\ \sigma(w_r\!\cdot\!u_1+b_r)\,\langle Z\rangle_{r-1}],\quad \delta_{lk}=b_{lk}+\pi\tanh(W u_r)_{lk}$", fs=4.4)
+        lab(ax, 74.0, 4.8, r"$\mathbf{r}_i(u_r)=\mathbf{r}^0_i+0.6\tanh(W_{\rm geo}u_r)_i\in\mathbb{R}^3,\quad V(u_r)=\sum_{i<j}\frac{C_6}{|\mathbf{r}_i(u_r)-\mathbf{r}_j(u_r)|^6}\,n_i n_j$", fs=4.4)
+        lab(ax, 74.0, 0.5, r"$|\psi_r\rangle=\prod_{l=1}^{4}\left[e^{-i\tau_l V(u_r)}\bigotimes_{k=1}^{10}R_z(\delta_{lk})\,R_x(\Omega_l)\right]|0\rangle^{\otimes 10},\quad r=1,2,3$", fs=4.4)
+        lab(ax, 24.0, 5.4, r"$y = W_o h + W_s x_t + \alpha\, W_q\,\langle Z\rangle,\qquad h = z+\tanh(Gz)\odot c$", fs=4.4)
     fig.savefig(OUT, dpi=300, bbox_inches="tight", pad_inches=0.03, facecolor="white")
     fig.savefig(OUT.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.03)
     print(f"wrote {OUT}")
