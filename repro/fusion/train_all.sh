@@ -10,7 +10,8 @@
 # ~4.2 h each, the three J1QH heads 2.8 h together, li tree ~3 min, NAS entry ensemble ~2 h -> F15K ~22.2 GB10-hours, F16K ~25.4 (6 more
 # MLP heads). See README.md for the A100 conversion.
 set -e; cd "$(dirname "$0")/../.."; export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0} PYTHONUNBUFFERED=1; P=.venv/bin/python; F=paper/strat/fusion
-CAND=${CAND:-F20K}; case "$CAND" in F15K|F16K|F17K|F18K|F19K|F20K) ;; *) echo "CAND must be F15K, F16K, F17K, F18K, F19K or F20K"; exit 2;; esac
+CAND=${CAND:-F21K}; case "$CAND" in F15K|F16K|F17K|F18K|F19K|F20K|F21K) ;; *) echo "CAND must be F15K, F16K, F17K, F18K, F19K, F20K or F21K"; exit 2;; esac
+[ "$CAND" = F21K ] && CAND=F20K                                                   # F21K trains exactly the F20K weights (it differs only at inference, §48p)
 TW=0; [ "$CAND" = F15K ] || TW=1                                           # the Ip-sign canonical twins (F16K, F17K)
 CN=""; QT=J1QH; XT=_XPA; case "$CAND" in F17K|F18K|F19K|F20K) CN="STRAT_CANON=2"; QT=J1QHCS; XT=_XPACS;; esac   # F17K / F18K / F19K: canonical register / X-point heads
 # 1 NAS entry ensemble (7 members incl. the srr register model coupled_c13-mlp, + its stage-1 init trunk1_t5) on all labelled shots

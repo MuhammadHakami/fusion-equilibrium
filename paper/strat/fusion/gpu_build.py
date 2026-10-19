@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import time
+import warnings
 import zipfile
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -47,7 +48,26 @@ PSI["psiMixAV"] = PSI["psiMixA"] + ["qf:head_boundary_v8_PSIV60A_s1"] * 3 + ["qf
 PSI["PQmixV32"] = ["PQ2.pt", "LS_ctrl.pt", "qf:head_boundary_v8_PSIV60_s1@32", "qf:head_boundary_v8_PSIV60_s2@32"]   # §48h f20Pc: temporal comps 0-31 only
 PSI["PQmixV32h"] = ["PQ2.pt", "LS_ctrl.pt"] + ["qf:head_boundary_v8_PSIV60_s1@32"] * 3 + ["qf:head_boundary_v8_PSIV60_s2@32"] * 3   # §48i: share 0.75
 PSI["psiMixAV32h"] = PSI["psiMixA"] + ["qf:head_boundary_v8_PSIV60A_s1@32"] * 9 + ["qf:head_boundary_v8_PSIV60A_s2@32"] * 9   # §48i production (0.75)
+PSI["PQmixV32x3"] = ["PQ2.pt", "LS_ctrl.pt"] * 3 + [f"qf:head_boundary_v8_PSIV60_s{k}@32" for k in (1, 2, 3)] * 2   # §48m: 3 temporal seeds, share 0.5
+PSI["psiMixAV32x3"] = PSI["psiMixA"] * 3 + [f"qf:head_boundary_v8_PSIV60A_s{k}@32" for k in (1, 2, 3)] * 6            # §48m production
 PSI["psiMixAV32"] = PSI["psiMixA"] + ["qf:head_boundary_v8_PSIV60A_s1@32"] * 3 + ["qf:head_boundary_v8_PSIV60A_s2@32"] * 3   # §48h F20K (f20Pc)
+PHASE = {}                       # §48o: "<set>" -> temporal ("qf:") share on the qf-covered components by shot phase (first 5, mid, T-10..T-6, last 5)
+
+
+def phase_set(name, base, shares):
+    PSI[name] = PSI[base]; PHASE[name] = tuple(float(x) for x in shares)
+
+
+def phase_w(T, sh):
+    i = np.arange(T)
+    return np.where(i < 5, sh[0], np.where(i >= T - 5, sh[3], np.where(i >= T - 10, sh[2], sh[1])))
+
+
+phase_set("PQmixV32p", "PQmixV32", (0.77, 1.00, 1.00, 0.85))              # §48o stage A: per-phase shares fitted on the calibration shots
+phase_set("PQmixV32w95", "PQmixV32", (0.95,) * 4)                       # §48o stage A: global share 0.95 (production-like MLP side)
+phase_set("psiMixAV32w95", "psiMixAV32", (0.95,) * 4)                   # §48o production
+phase_set("PQmixV32x3w95", "PQmixV32x3", (0.95,) * 4)                   # §48p: three temporal seeds at share 0.95
+phase_set("psiMixAV32x3w95", "psiMixAV32x3", (0.95,) * 4)               # §48p production (F21K + share 0.95)
 for _t in ("LS_ctrl", "LS_w3", "LS_w30", "K128", "K256", "PQ2", "PQL10", "PQ2s2", "PQ2s3", "PQ2H"):                               # §42b level-set / §42c k trunks (single seed)
     PSI[_t] = [f"{_t}.pt"]
 IPFIX_PREFIX = ("IPF_", "QFI_")              # sota trunks trained with QW_MAGFIX=X_ipfix (heads record it as ck["magfix_name"])
@@ -231,7 +251,17 @@ def predict(d, shots, a, sota, ES, arms=None, sink=None, psi_sets=None):
                "head": ph[:, :2].cpu().numpy()}[a.axis]                              # §38aa: head = the J1 heads' axis
         ax = torch.tensor(axv, device="cuda", dtype=torch.float64)
         for ps_, psim in psims.items():
-            pc = np.concatenate([np.nanmean([m[s][0] for m in psim], 0) for s, _ in group])   # nanmean: "qf:stem@k" members (§48h)
+            bn_ = base_(ps_) if ps_ else a.psi
+            if bn_ in PHASE:                                 # §48o: MLP mean and temporal mean mixed by a per-shot-phase share
+                isq = [p_.startswith("qf:") for p_ in PSI[bn_]]; assert len(isq) == len(psim), (bn_, len(isq), len(psim))   # no skipped member
+                pm_ = np.concatenate([np.mean([m[s][0] for m, q_ in zip(psim, isq) if not q_], 0) for s, _ in group])
+                with warnings.catch_warnings():                # components above k are NaN in every temporal member (expected)
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    pv_ = np.concatenate([np.nanmean([m[s][0] for m, q_ in zip(psim, isq) if q_], 0) for s, _ in group])
+                w_ = np.concatenate([phase_w(len(r), PHASE[bn_]) for _, r in group])[:, None]; kq = np.isfinite(pv_).all(0)
+                pc = pm_.copy(); pc[:, kq] = (1 - w_) * pm_[:, kq] + w_ * pv_[:, kq]
+            else:
+                pc = np.concatenate([np.nanmean([m[s][0] for m in psim], 0) for s, _ in group])   # nanmean: "qf:stem@k" members (§48h)
             if shrink is not None and (ps_ is None or "s" in flags_(ps_)):
                 pc = pc.copy(); sl, mt, mp = shrink; pc[:, :64] = mt + sl * (pc[:, :64] - mp)
             psi = torch.tensor((pc @ comps + mean).reshape(-1, 65, 65), device="cuda")

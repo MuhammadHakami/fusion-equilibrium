@@ -87,7 +87,7 @@ e17378aed3543d3f6ef53651d4ce9a640e0c4f364361023256b61a5263dc89f0        566  pap
 9db821a700dd05ae8e43d0c742723b361437b0c7b2c6ffe597cfd9b382722c45       5849  paper/strat/fusion/fut_feats.py
 877829e196fd820ac7bb42b69228fe86bf38f28aaa65a7d369d46b12da3068e7       9881  paper/strat/fusion/fx.py
 d08a6e16a0c65b8e4862f0f0becadfb65808a82d8bdbb0a442a580fcdcabb1ba      11718  paper/strat/fusion/gbdt_shape.py
-945b5a82c3ad4bb6cadc217638c3a6f85a462ac3e69507588e913cde315a3524      27084  paper/strat/fusion/gpu_build.py
+0442474c756ae4d90898654dbb4a57c7514185ccb67ba3ba07bb06c9f595755c      29376  paper/strat/fusion/gpu_build.py
 d35769488ef467bea839baa39aac7ee1dc40e3e6af55fc353d84c6bcabec7d47       6455  paper/strat/fusion/gpu_pipe.py
 687fe6880347fe56a3968e7fd4e859335c7466a04737f27f6a39632d1f814e3c      14659  paper/strat/fusion/gpu_post.py
 a3b3a9bcb12e50302fef1bba51d2b17d12a125b3fd156d85fd876194cf55b3fb      12999  paper/strat/fusion/gpu_scorer.py
@@ -105,7 +105,7 @@ e369bff9a0dd79e6128f19af211e1f29f800a37a4c6578274305d5663215679b      11357  pap
 098c4cd0fcb41122ce0cff5074fe9c796b9fd777d986eb8c348169d694d7e82e       3355  paper/strat/fusion/qphys_inputs.py
 fd4c3edd144a964a5cad0098d63a1529511b31dde957fb7384ad25c2164156c3       4305  paper/strat/fusion/qpikan.py
 99b584bb0e3614594703e573e2e12d360dea8fc9c5523121222e28e2359808ba       3011  paper/strat/fusion/qshape_feats.py
-a4c40da3da994854fc7ec80d0a6a7e70096d757ebec09b321006e3458dfb1827      33978  paper/strat/fusion/quota_fusion.py
+233dbccfc6289132da626bec020d3ccd7f80f8d44f126ad4a256ca7411ac6de9      34154  paper/strat/fusion/quota_fusion.py
 bb95e77f0ffe9238691e98eb0fb12ae01f49037d5f2d6285861fd1b9d3b2ecc8       3185  paper/strat/fusion/retrain_cpu.py
 2664532a4507378fa471fa2726fd345a20f62b77b852bed779f6d748a144bd75       2624  paper/strat/fusion/retrain_ip.py
 2242ceea525d9e28b3c0522fb2cabbdddb91f5061b91e604244ce3411fe5216a       9979  paper/strat/fusion/strategies.py
@@ -116,13 +116,13 @@ bb95e77f0ffe9238691e98eb0fb12ae01f49037d5f2d6285861fd1b9d3b2ecc8       3185  pap
 fbba829c9ae18ea72be90cf9b1d6dbbc65a45a48d065f5b8fbe9ea2d4a6d78fb       3538  paper/strat/fusion/xp_labels.py
 eca7c4772fb67025b6fa8803acb99706147edc24da2dc68295df277cbbb5fa78       7563  paper/strat/fusion/xp_oracle.py
 2fb302fc959ebc938f54a1945a9c9dc8eda433cdbd81d408732fec2f5586fa06      10418  repro/fusion/MANIFEST_runtime.txt
-6ef699d6558ab73e7d5f30202b058f3aa903647b4ef84f31731712a83d445207      12942  repro/fusion/README.md
+747665529fbcea1b87fdec4d4ecf205a19eec6707ab496e7a847173fecece277      13692  repro/fusion/README.md
 c6cf4cca2ac098863d2d10336e91db34b88abe39f5ed5a5ac9fbdd6a19345339       3052  repro/fusion/entry_configs.json
 11fb530522610ad7d7b807c14847b55ef6d62cca60f99468d7182364c16559f8       7886  repro/fusion/export.py
 84119f9026c41bc6c47bd832bf4226787a7a6896dd46b9e949d61d80f8ce51ee       1992  repro/fusion/fetch_weights.py
-4321467dc95bcdb6573f3aa5f6f2261027efe22037c54f90847e53c52e5f321a      34067  repro/fusion/fig_model.py
-f8a381e0741d2b221eb1b5be651b971d1bad939d5255db824bf3b1b59adbd05a       5277  repro/fusion/infer.sh
-2ccbc744ff571c01512b2d6283264fd516740686a8b9a770af54a8aa0cc25acb     492533  repro/fusion/model.png
+ef58f55e44429f829c6d272072348fb273888fcfb3cccf2e05cbf61f9d97e9f3      34255  repro/fusion/fig_model.py
+6479ad6c0f73cb7193f73ee2a3eb92b3302ca1646b05da65e1c800074b9d8c37       5754  repro/fusion/infer.sh
+0d92b21295eb9a70d0256ba7fa1e0907ddc05b96607ed256d353a463f5eb1c2c     492752  repro/fusion/model.png
 c3ee65f7b131e7db78f91b3b74c6d3bc5b6db05a0936a312210f8520de65d535       3414  repro/fusion/requirements.lock
-22efb9427e0cddab69c2aad2b8080e69235faa34d42f89410255a203e4f3a0c3       8680  repro/fusion/train_all.sh
+fa24c503ed2698badb5a5d7e41527959de7399f0a550e9f4e8dd951f7b2f5e69       8850  repro/fusion/train_all.sh
 fda5972bb449248e7415bf6212a84c8f5b51493be5ef609199d58f13cbfa227d       2206  runs/final_fold.sh

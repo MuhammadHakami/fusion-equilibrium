@@ -13,6 +13,7 @@ runs/sophelio_sota/*.pt), and the script stops if a drawn number disagrees with 
                                                              blocks, 12 tokens, tethered 3-D Rydberg registers); the ensemble lists V60 + W60
     FIG_CAND=F20K ...                                     -> the F20K entry (§48h): rows A-B as F18K (V60); the psi reconstruction adds the
                                                              VisionHOPE temporal psi networks (components 0-31, 50 %); J1QPIpi removed
+    FIG_CAND=F21K ...                                     -> the F21K entry (§48p): as F20K with the temporal psi share 95 %
 """
 from __future__ import annotations
 
@@ -71,7 +72,7 @@ def sizes() -> dict:
         chk.append(f"{main_stem} ({got['params']} M parameters)")
         s.update(got)
     p = ROOT / "runs/strat/fusion/head_boundary_v8_PSIV60A_s1.pt"
-    if CAND == "F20K" and p.exists():                                        # §48h temporal psi networks: x_t (599) -> 64 PCA coefficients
+    if CAND in ("F20K", "F21K") and p.exists():                                        # §48h temporal psi networks: x_t (599) -> 64 PCA coefficients
         ck = torch.load(p, map_location="cpu", weights_only=False)
         assert len(ck["mu"]) == s["fin"] and len(ck["ymu"]) == 64 and ck["qf"].get("target") == "psi", (len(ck["mu"]), len(ck["ymu"]))
         chk.append("PSIV60A")
@@ -408,7 +409,7 @@ def main() -> None:
     modes(ax, 18.3, yc - 3.0, 7.6, 6.2); node(ax, 27.6, yc + 0.1, "$\\Sigma$")
     arrow(ax, (13.9, yc), (14.55, yc)); arrow(ax, (15.35, yc), (18.2, yc)); arrow(ax, (26.0, yc + 0.1), (26.7, yc + 0.1))
     gl = [("vh", "VisionHOPE + register x 2", "0.25"), ("mlp", "MLP x 12", "0.45"), ("reg", "MLP + register x 5", "0.30")]
-    if CAND == "F20K":                                                      # route weights 13.5 / 24 / 12 of 49.5 (J1QPIpi removed)
+    if CAND in ("F20K", "F21K"):                                                      # route weights 13.5 / 24 / 12 of 49.5 (J1QPIpi removed)
         gl = [("vh", "VisionHOPE + register x 2", "0.27"), ("mlp", "MLP x 12", "0.48"), ("reg", "MLP + register x 3", "0.24")]
     if CAND == "F19K":                                                      # route weights 13.5 + 13.5 / 24 / 12 of 63
         gl = [("vh", "VisionHOPE + register x 4", "0.43"), ("mlp", "MLP x 12", "0.38"), ("reg", "MLP + register x 3", "0.19")]
@@ -420,9 +421,9 @@ def main() -> None:
     arrow(ax, (48.6, 41.0), (48.6, yc + 5.45), color="0.45"); lab(ax, 49.1, 41.4, "$y$", fs=3.9, ha="left", va="bottom")
     node(ax, 54.4, yc + 1.4, "$\\Sigma$"); lab(ax, 54.4, yc + 0.3, f"{s['out']}", fs=3.6)
     glyph(ax, 30.6, yc - 8.2, "mlp", w=4.0, h=2.4); lab(ax, 32.6, yc - 8.5, f"q95, betaN\n$x_t$: {s['qb_in']}", fs=3.5)
-    if CAND == "F20K":                                                      # §48h: temporal psi networks (PSIV60A s1-2), components 0-31, 50 %
+    if CAND in ("F20K", "F21K"):                                                      # §48h: temporal psi networks (PSIV60A s1-2), components 0-31, 50 %
         glyph(ax, 2.6, yc - 10.6, "vh", w=4.0, h=2.4)
-        lab(ax, 7.1, yc - 9.4, f"VisionHOPE psi networks x 2: whole shot, $x$: {s['fin']}\nPCA components 0-31 at 50 %", fs=3.4, ha="left", va="center")
+        lab(ax, 7.1, yc - 9.4, f"VisionHOPE psi networks x 2: whole shot, $x$: {s['fin']}\nPCA components 0-31 at {'95' if CAND == 'F21K' else '50'} %", fs=3.4, ha="left", va="center")
         arrow(ax, (4.6, yc - 8.15), (14.9, yc - 3.1), color="0.45")
     glyph(ax, 38.4, yc - 8.2, "mlp", w=4.0, h=2.4); lab(ax, 40.4, yc - 8.5, f"X-points\n$x_t$: {s['fin']}", fs=3.5)
     arrow(ax, (42.5, yc - 7.0), (73.0, yc - 0.2), style="angle,angleA=0,angleB=90,rad=0", color="0.45")

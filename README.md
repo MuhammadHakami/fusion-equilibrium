@@ -1,11 +1,11 @@
-# Fusion Equilibrium Challenge 2026 — DIII-D entry (F20K)
+# Fusion Equilibrium Challenge 2026 — DIII-D entry (F21K)
 
 Per EFIT frame: ψ(R, Z) 65×65, q95 and βN from coil currents, Ip and Thomson scattering only.
 Hybrid classical + quantum: a VisionHOPE-T backbone over the whole shot, a zero-init gate into the frame's MLP trunk, and a
-simulated 30-atom Rydberg register whose detunings and drives depend on each input - for the shape heads and, in F20K, for the
-psi flux map itself (temporal psi networks on the leading PCA components).
+simulated 30-atom Rydberg register whose detunings and drives depend on each input - for the shape heads and for the psi flux map
+itself (temporal psi networks carry 95 % of the leading 32 PCA components).
 
-![F20K architecture](repro/fusion/model.png)
+![F21K architecture](repro/fusion/model.png)
 
 <sub>Sizes are read from the trained checkpoints by [`repro/fusion/fig_model.py`](repro/fusion/fig_model.py).</sub>
 
@@ -15,7 +15,8 @@ psi flux map itself (temporal psi networks on the leading PCA components).
 |---|---|---|
 | F17K | 0.996223 | — |
 | F18K | 0.996278 | +0.000084 [+0.000036, +0.000134] |
-| **F20K** (Final) | (Final phase only) | **+0.000093 [+0.000017, +0.000187] vs F18K** |
+| F20K | (Final phase only) | +0.000093 [+0.000017, +0.000187] vs F18K |
+| **F21K** (Final) | (Final phase only) | **+0.000028 [+0.000005, +0.000055] vs F20K** (confirmation shots; inference only) |
 
 ## Run
 
@@ -26,9 +27,9 @@ hf download Sophelio/fusion-equilibrium-challenge --repo-type dataset --local-di
 .venv/bin/python repro/fusion/fetch_weights.py --base https://github.com/MuhammadHakami/fusion-equilibrium/releases/download/f20k-weights
 
 QW_FOLD=diii_d_private_test runs/final_fold.sh                       # inputs-only feature blocks
-QW_FOLD=diii_d_private_test CAND=F20K repro/fusion/infer.sh F20      # -> runs/sophelio_sota/submission_F20K/diii_d_private_test.npz
+QW_FOLD=diii_d_private_test CAND=F21K repro/fusion/infer.sh F21      # -> runs/sophelio_sota/submission_F21K/diii_d_private_test.npz
 
-CAND=F20K repro/fusion/train_all.sh                                  # retrain everything (~18.5 A100-hours, estimated from GB10 timings)
+CAND=F21K repro/fusion/train_all.sh                                  # retrain everything (~18.5 A100-hours, estimated from GB10 timings)
 ```
 
 Data step, components, compute and provenance: [`repro/fusion/README.md`](repro/fusion/README.md).

@@ -249,10 +249,11 @@ class Shots:
         return torch.cat([self.X[idx], rel, valid[..., None].float()], -1), valid, idx
 
     def tiles(self, k, L):
-        """Inference crops covering every frame of the shots k: starts 0, L/2, L, ... (overlaps averaged by the caller)."""
-        out = []
+        """Inference crops covering every frame of the shots k: starts 0, L/2, L, ... (overlaps averaged by the caller).
+        QW_QF_STRIDE (§48n test-time crop averaging): tile stride in frames; unset = L / 2 (the deployed default)."""
+        out, stride = [], int(os.environ.get("QW_QF_STRIDE", "0")) or max(L // 2, 1)
         for j in k:
-            n = int(self.n[j]); starts = list(range(0, max(n - L, 0) + 1, max(L // 2, 1)))
+            n = int(self.n[j]); starts = list(range(0, max(n - L, 0) + 1, stride))
             if starts[-1] + L < n:
                 starts.append(n - L)
             out += [(j, s_) for s_ in starts]

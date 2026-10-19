@@ -1,6 +1,6 @@
 # Fusion Equilibrium Challenge — reproduction package (DIII-D, Challenge 1)
 
-MIT-licensed reproduction package (exact runtime inputs with sha256: MANIFEST_runtime.txt; weights: WEIGHTS.sha256 + fetch_weights.py). Six candidates, selected with `CAND`; **F20K is the Final configuration** (doc 35 §48h, 2026-10-19):
+MIT-licensed reproduction package (exact runtime inputs with sha256: MANIFEST_runtime.txt; weights: WEIGHTS.sha256 + fetch_weights.py). Seven candidates, selected with `CAND`; **F21K is the Final configuration** (doc 35 §48p, 2026-10-20):
 - **F15K** (Development public S 0.995949, 2026-10-17): F14K with Huber-loss (delta 0.3) shape heads J1RLHA and q/b heads
   QHAR2Hu (doc 35 §45l). F14K = F8 (QHAR2 q/b heads) + three fast-path register shape heads J1QH (§43l) + a gradient-boosted li tree
   blended into the heads' li at w 0.2 (§45a) + a second kappa / li pass (kw2).
@@ -12,12 +12,18 @@ MIT-licensed reproduction package (exact runtime inputs with sha256: MANIFEST_ru
 - **F18K** (Development public S 0.996278, 2026-10-18): F17K + the VisionHOPE + input-dependent Rydberg-register shape heads
   V60 s1-2 on every shot (weight 6.75 each = 0.25 of the shape-head weight; doc 35 §47c / §47f). Paired gain over F17K on 150 held-out
   shots (TRAIN-only heads, deployed chain): S +0.000084, 95% CI [+0.000036, +0.000134]; +3.1 GB10-hours of training.
-- **F20K** (default `CAND`; the Final configuration, 2026-10-19): F18K without the PI-KAN register heads J1QPIpi (budget) and with
+- **F20K** (2026-10-19): F18K without the PI-KAN register heads J1QPIpi (budget) and with
   VisionHOPE **temporal psi** heads PSIV60A s1-2 (`quota_fusion.py`, target = the 64 psi PCA coefficients; the shape-head recipe found by
   Optuna + held-out folds, doc 35 §48c) mixed 50 / 50 with the six MLP psi trunks on PCA components 0-31 (components 32-63: the MLP
   trunks alone). Cross-validated psi error 0.48-0.52x a matched per-frame MLP. Paired gain over F18K on 150 held-out shots (TRAIN-only
   models, deployed chain): S +0.000093, 95% CI [+0.000017, +0.000187] (psi R2 0.999863 -> 0.999905, D_LCFS -0.00015, consistency +0.00027).
   (F19K - W60 shape heads in place of J1QPIpi - is in the scripts but was not adopted: +0.000014 [-0.000037, +0.000055].)
+- **F21K** (default `CAND`; the Final configuration, 2026-10-20): F20K with the temporal psi share raised from 0.5 to **0.95** on PCA
+  components 0-31 (psi set `psiMixAV32w95`; doc 35 §48o-p). Same weights and training as F20K; inference only. On calibration shots that
+  are in neither read set, the temporal heads are ~2x more accurate than the MLP trunks there (least-squares share 0.95 with a
+  production-like MLP side; out-of-fold coefficient error -14 %). Paired gain over F20K: S +0.000028, 95% CI [+0.000005, +0.000055] on the
+  confirmation shots (150, disjoint), +0.000021 [-0.000007, +0.000057] on the 150 held-out shots (psi R2 +0.00001 to +0.00003, D_LCFS
+  -0.00004 to -0.00009, consistency up).
 It will be frozen at the Final-phase submission. Every number below is reproducible from the scripts named here.
 
 ## What the model is
@@ -64,7 +70,7 @@ proportions 6 : 1 : 3 of doc 35 §43l, scaled to the seed counts); the li output
   at 1.0x on an A100 (its SRNL scans and the simulated register do not get the MLPs' speed-up) -> **F18K ~23 A100-hours** (within 24).
 - F20K removes the two PI-KAN register heads (2 x 4.2 GB10-h, ~1.2x slower on an A100: ~10 A100-h) and adds the two PSIV60A psi heads
   (22.8 k steps each at 0.439 s / step alone on the GB10, measured over one epoch (doc 35): 2.8 h per seed, 5.6 GB10-hours, counted at 1.0x)
-  -> **F20K ~18.5 A100-hours** (within 24).
+  -> **F20K ~18.5 A100-hours** (within 24). F21K trains the same models (~18.5 A100-hours).
 
 ## Data provenance
 
@@ -90,14 +96,14 @@ STRAT_NANG=64 STRAT_LABEL_SUFFIX=_v8 .venv/bin/python paper/strat/fusion/boundar
 .venv/bin/python paper/strat/fusion/liphys_feats.py
 .venv/bin/python paper/strat/fusion/xp_labels.py                         # X-point labels (continuous saddle of the true psi)
 # 2 models: repro/fusion/train_all.sh (entry ensemble, psi trunks, shape / register / q-b heads; exact env per component)
-CAND=F20K repro/fusion/train_all.sh            # the Final; or CAND=F18K (MLP psi only, + J1QPIpi), CAND=F17K (no V60 heads), CAND=F16K (J1QH / XPA in place of the twins), CAND=F15K (no Ip-sign twins)
+CAND=F21K repro/fusion/train_all.sh            # the Final (= the F20K weights); or CAND=F18K (MLP psi only, + J1QPIpi), CAND=F17K (no V60 heads), CAND=F16K (J1QH / XPA in place of the twins), CAND=F15K (no Ip-sign twins)
 ```
 
 ## Regenerate the submitted predictions
 
 ```bash
 QW_FOLD=diii_d_private_test runs/final_fold.sh            # inputs-only feature blocks for the test fold
-QW_FOLD=diii_d_private_test CAND=F20K repro/fusion/infer.sh <tag>   # (or CAND=F18K / F17K / F16K / F15K) -> runs/sophelio_sota/submission_<tag>K/diii_d_private_test.npz
+QW_FOLD=diii_d_private_test CAND=F21K repro/fusion/infer.sh <tag>   # (or CAND=F20K / F18K / F17K / F16K / F15K) -> runs/sophelio_sota/submission_<tag>K/diii_d_private_test.npz
 ```
 
 Determinism: q95 / betaN reproduce to ~1e-6; psi to ~1e-3 absolute (GPU reduction order in the batched post-processing),
