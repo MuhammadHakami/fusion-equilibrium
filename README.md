@@ -28,7 +28,7 @@ hf download Sophelio/fusion-equilibrium-challenge --repo-type dataset --local-di
 QW_FOLD=diii_d_private_test runs/final_fold.sh                       # inputs-only feature blocks
 QW_FOLD=diii_d_private_test CAND=F20K repro/fusion/infer.sh F20      # -> runs/sophelio_sota/submission_F20K/diii_d_private_test.npz
 
-CAND=F20K repro/fusion/train_all.sh                                  # retrain everything (~19 A100-hours, estimated)
+CAND=F20K repro/fusion/train_all.sh                                  # retrain everything (~18.5 A100-hours, estimated from GB10 timings)
 ```
 
 Data step, components, compute and provenance: [`repro/fusion/README.md`](repro/fusion/README.md).

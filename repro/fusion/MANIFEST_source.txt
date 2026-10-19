@@ -116,7 +116,7 @@ bb95e77f0ffe9238691e98eb0fb12ae01f49037d5f2d6285861fd1b9d3b2ecc8       3185  pap
 fbba829c9ae18ea72be90cf9b1d6dbbc65a45a48d065f5b8fbe9ea2d4a6d78fb       3538  paper/strat/fusion/xp_labels.py
 eca7c4772fb67025b6fa8803acb99706147edc24da2dc68295df277cbbb5fa78       7563  paper/strat/fusion/xp_oracle.py
 2fb302fc959ebc938f54a1945a9c9dc8eda433cdbd81d408732fec2f5586fa06      10418  repro/fusion/MANIFEST_runtime.txt
-e8fbc0e38d33573ac42c664de682a0388855c5623b7dd4b3e13a49f4ffefc04c      12897  repro/fusion/README.md
+6ef699d6558ab73e7d5f30202b058f3aa903647b4ef84f31731712a83d445207      12942  repro/fusion/README.md
 c6cf4cca2ac098863d2d10336e91db34b88abe39f5ed5a5ac9fbdd6a19345339       3052  repro/fusion/entry_configs.json
 11fb530522610ad7d7b807c14847b55ef6d62cca60f99468d7182364c16559f8       7886  repro/fusion/export.py
 84119f9026c41bc6c47bd832bf4226787a7a6896dd46b9e949d61d80f8ce51ee       1992  repro/fusion/fetch_weights.py

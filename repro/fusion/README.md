@@ -63,7 +63,8 @@ proportions 6 : 1 : 3 of doc 35 §43l, scaled to the seed counts); the li output
 - F18K adds the two V60 heads: 20.4 k steps each at 0.27 s / step alone on the GB10 (doc 35 §47) = ~1.5 h per seed, 3.1 GB10-hours, counted
   at 1.0x on an A100 (its SRNL scans and the simulated register do not get the MLPs' speed-up) -> **F18K ~23 A100-hours** (within 24).
 - F20K removes the two PI-KAN register heads (2 x 4.2 GB10-h, ~1.2x slower on an A100: ~10 A100-h) and adds the two PSIV60A psi heads
-  (22.8 k steps each; deeper VisionHOPE than V60, estimated ~3.2 h per seed alone on the GB10, counted at 1.0x) -> **F20K ~19 A100-hours**.
+  (22.8 k steps each at 0.439 s / step alone on the GB10, measured over one epoch (doc 35): 2.8 h per seed, 5.6 GB10-hours, counted at 1.0x)
+  -> **F20K ~18.5 A100-hours** (within 24).
 
 ## Data provenance
 
